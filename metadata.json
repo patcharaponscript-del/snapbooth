@@ -1,0 +1,6 @@
+{
+  "name": "SnapBooth",
+  "description": "A stylish vintage and modern photobooth web application for snapping photo strips, applying retro & film filters, adding custom stickers, and downloading high-res prints.",
+  "permissions": [],
+  "capabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
