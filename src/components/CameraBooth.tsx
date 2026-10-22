@@ -12,7 +12,8 @@ import {
   Zap, 
   AlertCircle,
   Film,
-  Smile
+  Smile,
+  X
 } from 'lucide-react';
 import { CapturedPhoto, FilterType, LayoutType } from '../types/photobooth';
 import { soundFX } from '../utils/audio';
@@ -53,7 +54,7 @@ export const CameraBooth: React.FC<CameraBoothProps> = ({
   const overlayCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const landmarkerRef = useRef<FaceLandmarker | null>(null);
-  const trackedFaceRef = useRef<TrackedFace>(getCenteredDefaultFace());
+  const trackedFacesRef = useRef<TrackedFace[]>([getCenteredDefaultFace()]);
 
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -66,8 +67,9 @@ export const CameraBooth: React.FC<CameraBoothProps> = ({
   const [burstTargetCount, setBurstTargetCount] = useState<number>(4);
   const [retakeTargetId, setRetakeTargetId] = useState<string | null>(null);
 
-  // TikTok / Instagram Face Filter state
-  const [activeFaceFilter, setActiveFaceFilter] = useState<string>('peach-dream');
+  // TikTok / Instagram Face Filter state (Defaults to 'none' on start)
+  const [activeFaceFilter, setActiveFaceFilter] = useState<string>('none');
+  const [isFaceFilterModalOpen, setIsFaceFilterModalOpen] = useState<boolean>(false);
   const [faceFilterCategory, setFaceFilterCategory] = useState<string>('all');
   const [isLandmarkerReady, setIsLandmarkerReady] = useState(false);
   const [faceDetected, setFaceDetected] = useState(false);
@@ -115,9 +117,11 @@ export const CameraBooth: React.FC<CameraBoothProps> = ({
               try {
                 const results = landmarkerRef.current.detectForVideo(video, performance.now());
                 if (results.faceLandmarks && results.faceLandmarks.length > 0) {
-                  const rawFace = extractTrackedFace(results.faceLandmarks[0]);
-                  const smoothed = smoothFaceTracking(rawFace, 0.45);
-                  trackedFaceRef.current = smoothed;
+                  const faces = results.faceLandmarks.map((lm, idx) => {
+                    const raw = extractTrackedFace(lm);
+                    return smoothFaceTracking(raw, 0.45, idx);
+                  });
+                  trackedFacesRef.current = faces;
                   setFaceDetected(true);
                 } else {
                   setFaceDetected(false);
@@ -127,16 +131,19 @@ export const CameraBooth: React.FC<CameraBoothProps> = ({
               }
             }
 
-            // Render live Face AR Filter
-            renderFaceARFilter(
-              ctx,
-              canvas.width,
-              canvas.height,
-              trackedFaceRef.current,
-              activeFaceFilter,
-              isMirrored,
-              performance.now()
-            );
+            // Render live Face AR Filter for ALL detected faces (Multi-face tracking!)
+            const facesToRender = trackedFacesRef.current.length > 0 ? trackedFacesRef.current : [getCenteredDefaultFace()];
+            facesToRender.forEach((face) => {
+              renderFaceARFilter(
+                ctx,
+                canvas.width,
+                canvas.height,
+                face,
+                activeFaceFilter,
+                isMirrored,
+                performance.now()
+              );
+            });
           }
         }
       }
@@ -208,16 +215,19 @@ export const CameraBooth: React.FC<CameraBoothProps> = ({
     // Reset transform for filter drawing
     ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-    // Bake live tracked Face AR filter directly onto the snapshot!
-    renderFaceARFilter(
-      ctx,
-      canvas.width,
-      canvas.height,
-      trackedFaceRef.current,
-      activeFaceFilter,
-      isMirrored,
-      performance.now()
-    );
+    // Bake live tracked Face AR filter directly onto the snapshot for ALL faces!
+    const facesToRender = trackedFacesRef.current.length > 0 ? trackedFacesRef.current : [getCenteredDefaultFace()];
+    facesToRender.forEach((face) => {
+      renderFaceARFilter(
+        ctx,
+        canvas.width,
+        canvas.height,
+        face,
+        activeFaceFilter,
+        isMirrored,
+        performance.now()
+      );
+    });
 
     return canvas.toDataURL('image/jpeg', 0.95);
   }, [isMirrored, activeFaceFilter]);
@@ -551,34 +561,41 @@ export const CameraBooth: React.FC<CameraBoothProps> = ({
 
             {/* Viewport HUD Overlays */}
             <div className="absolute top-4 left-4 right-4 flex items-center justify-between pointer-events-none z-20">
-              {/* Active face filter badge & tracking status */}
+              {/* Active face filter badge (shown only when a filter is actually active) */}
               <div className="flex items-center gap-2 flex-wrap">
-                <div className="pointer-events-auto bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-md text-[11px] font-medium text-zinc-300 flex items-center gap-1.5 border border-white/10">
-                  <span className="text-sm">{currentFace?.icon || '✨'}</span>
-                  <span className="font-semibold text-white">{currentFace?.name}</span>
-                </div>
-
-                {/* Real-time Tracking Status Badge */}
-                <div className={`pointer-events-auto px-2 py-0.5 rounded-md text-[10px] font-medium backdrop-blur-md flex items-center gap-1.5 border ${
-                  faceDetected
-                    ? 'bg-emerald-950/80 border-emerald-500/60 text-emerald-300 shadow-xs'
-                    : isLandmarkerReady
-                    ? 'bg-amber-950/80 border-amber-500/60 text-amber-300'
-                    : 'bg-zinc-900/80 border-zinc-700 text-zinc-400'
-                }`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${faceDetected ? 'bg-emerald-400' : 'bg-amber-400'}`} />
-                  <span>
-                    {faceDetected
-                      ? 'AI Face Mesh: ตามหน้าสดเรียลไทม์'
-                      : isLandmarkerReady
-                      ? 'ส่องหน้าเข้ากล้องเพื่อเริ่มตาม'
-                      : 'เตรียม AI Face Tracker...'}
-                  </span>
-                </div>
+                {activeFaceFilter !== 'none' && (
+                  <button
+                    onClick={() => setIsFaceFilterModalOpen(true)}
+                    className="pointer-events-auto bg-rose-950/80 hover:bg-rose-900 border border-rose-500/50 backdrop-blur-md px-2.5 py-1 rounded-lg text-[11px] font-semibold text-rose-200 flex items-center gap-1.5 shadow-sm transition-colors"
+                    title="คลิกเพื่อเปลี่ยนหรือปิดฟิลเตอร์หน้า"
+                  >
+                    <span className="text-sm">{currentFace?.icon || '✨'}</span>
+                    <span className="font-semibold text-white">{currentFace?.name}</span>
+                    <span className="text-[10px] text-rose-300 bg-rose-500/20 px-1.5 py-0.5 rounded-full">เปิดอยู่</span>
+                  </button>
+                )}
               </div>
 
-              {/* Viewport Mirror Toggle */}
-              <div className="pointer-events-auto flex items-center gap-1.5">
+              {/* Viewport Action Controls: AR Filter toggle & Mirror Toggle */}
+              <div className="pointer-events-auto flex items-center gap-2">
+                <button
+                  onClick={() => setIsFaceFilterModalOpen(true)}
+                  className={`p-2 sm:px-3 sm:py-1.5 rounded-lg backdrop-blur-md border transition-all flex items-center gap-1.5 ${
+                    activeFaceFilter !== 'none'
+                      ? 'bg-rose-600/90 hover:bg-rose-600 border-rose-400 text-white shadow-sm ring-2 ring-rose-500/30'
+                      : 'bg-black/60 hover:bg-black/80 border-white/10 text-zinc-300 hover:text-white'
+                  }`}
+                  title="เลือกฟิลเตอร์หน้า AR เสริม (หมาลิ้นห้อย, แว่นหัวใจ, หูแมว)"
+                >
+                  <Smile className="w-4 h-4 text-rose-400" />
+                  <span className="hidden sm:inline text-xs font-semibold">
+                    {activeFaceFilter !== 'none' ? currentFace?.name : 'ฟิลเตอร์หน้า AR'}
+                  </span>
+                  {activeFaceFilter !== 'none' && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  )}
+                </button>
+
                 <button
                   onClick={() => setIsMirrored(!isMirrored)}
                   className={`p-2 rounded-lg bg-black/60 backdrop-blur-md border border-white/10 transition-colors ${
@@ -605,73 +622,57 @@ export const CameraBooth: React.FC<CameraBoothProps> = ({
             )}
           </div>
 
-          {/* TIKTOK & INSTAGRAM LIVE FACE AR FILTERS SELECTOR */}
-          <div className="bg-[#14151b] border border-[#262833] rounded-2xl p-3.5 space-y-3">
+          {/* Film Color Tones Ribbon (เน้นโทนสีฟิล์มเอกลักษณ์ของ Photobooth) */}
+          <div className="bg-[#14151b] border border-[#262833] rounded-2xl p-3.5 space-y-2.5">
             <div className="flex flex-wrap items-center justify-between gap-2 px-1">
               <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-pink-500 via-rose-500 to-amber-500 flex items-center justify-center text-white text-xs shadow-xs">
-                  <Smile className="w-3.5 h-3.5" />
+                <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-amber-500 via-rose-500 to-pink-500 flex items-center justify-center text-white text-xs shadow-xs">
+                  <Film className="w-3.5 h-3.5" />
                 </div>
                 <div>
-                  <span className="text-xs font-bold text-white block leading-none">
-                    ฟิลเตอร์หน้าสไตล์ TikTok & Instagram (Face AR)
+                  <span className="text-xs font-bold text-white block leading-tight">
+                    โทนสีฟิล์ม Photobooth (Film Color Tones)
                   </span>
                   <span className="text-[10px] text-zinc-400">
-                    หมาลิ้นห้อยเมื่ออ้าปาก, หูแมว, แว่นหัวใจ, ผีเสื้อบิน, กลามัวร์หน้าเป๊ะ (ขยับตามหน้าจริง)
+                    ฟิล์ม 35mm, Y2K Flash, B&W High Contrast, Kodak Portra, Pastel Dream
                   </span>
                 </div>
               </div>
 
-              {/* Category tabs */}
-              <div className="flex items-center gap-1 bg-[#1a1b22] border border-[#292b38] rounded-lg p-0.5">
-                {[
-                  { id: 'all', label: 'ทั้งหมด' },
-                  { id: 'beauty', label: '✨ สวยหวานเกาหลี' },
-                  { id: 'cute', label: '🐾 สัตว์คาวาอี้' },
-                  { id: 'trendy', label: '🕶️ Y2K & แฟชั่น' },
-                  { id: 'funny', label: '😭 สายมีมฮาๆ' }
-                ].map((cat) => (
-                  <button
-                    key={cat.id}
-                    onClick={() => setFaceFilterCategory(cat.id)}
-                    className={`px-2 py-0.5 text-[10px] font-semibold rounded-md transition-colors whitespace-nowrap ${
-                      faceFilterCategory === cat.id
-                        ? 'bg-rose-600 text-white'
-                        : 'text-zinc-400 hover:text-white'
-                    }`}
-                  >
-                    {cat.label}
-                  </button>
-                ))}
-              </div>
+              {/* Quick Face AR Filter Button */}
+              <button
+                onClick={() => setIsFaceFilterModalOpen(true)}
+                className={`text-[11px] font-semibold px-2.5 py-1 rounded-lg border transition-all flex items-center gap-1.5 ${
+                  activeFaceFilter !== 'none'
+                    ? 'bg-rose-500/20 border-rose-500/60 text-rose-300'
+                    : 'bg-[#1b1c24] border-[#2e3040] text-zinc-400 hover:text-zinc-200 hover:border-zinc-500'
+                }`}
+                title="กดเพื่อเปิดเมนูลูกเล่นฟิลเตอร์หน้า AR"
+              >
+                <Smile className="w-3.5 h-3.5 text-rose-400" />
+                <span>{activeFaceFilter !== 'none' ? `AR: ${currentFace?.name}` : 'ลูกเล่นฟิลเตอร์หน้า AR'}</span>
+              </button>
             </div>
 
-            {/* Filter Buttons Carousel */}
             <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-              {filteredFaceFilters.map((ff) => {
-                const isSelected = activeFaceFilter === ff.id;
+              {filterOptions.map((f) => {
+                const isActive = activeFilter === f.id;
                 return (
                   <button
-                    key={ff.id}
-                    onClick={() => {
-                      setActiveFaceFilter(ff.id);
-                      soundFX.playPop();
-                    }}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-xl transition-all shrink-0 border ${
-                      isSelected
-                        ? 'bg-rose-950/40 border-rose-500 text-white shadow-sm ring-1 ring-rose-500/40'
-                        : 'bg-[#1b1c24] border-[#2b2d3a] text-zinc-400 hover:text-white hover:border-zinc-600'
+                    key={f.id}
+                    onClick={() => onChangeFilter(f.id)}
+                    className={`px-3 py-2 rounded-xl text-left transition-all shrink-0 border ${
+                      isActive
+                        ? 'bg-rose-950/40 border-rose-500 text-white shadow-xs ring-1 ring-rose-500/30'
+                        : 'bg-[#1b1c24] border-[#2b2d3a] text-zinc-400 hover:text-zinc-200 hover:border-zinc-600'
                     }`}
                   >
-                    <span className="text-xl shrink-0">{ff.icon}</span>
-                    <div className="text-left">
-                      <span className="text-xs font-bold block leading-tight whitespace-nowrap">
-                        {ff.name}
-                      </span>
-                      <span className="text-[10px] text-zinc-400 block truncate max-w-[130px]">
-                        {ff.tagline}
-                      </span>
-                    </div>
+                    <span className="text-xs font-semibold block leading-tight">
+                      {f.label}
+                    </span>
+                    <span className="text-[10px] text-zinc-400 block mt-0.5">
+                      {f.desc}
+                    </span>
                   </button>
                 );
               })}
@@ -744,41 +745,6 @@ export const CameraBooth: React.FC<CameraBoothProps> = ({
               <span className="text-[10px] text-zinc-500">
                 Spacebar to snap
               </span>
-            </div>
-          </div>
-
-          {/* Film Color Tones Ribbon */}
-          <div className="bg-[#14151b] border border-[#262833] rounded-2xl p-3.5">
-            <div className="flex items-center justify-between mb-2 px-1">
-              <span className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
-                <Film className="w-3.5 h-3.5 text-rose-400" />
-                <span>โทนสีฟิล์ม (Film Color Tones)</span>
-              </span>
-              <span className="text-[10px] text-zinc-500">12 สไตล์</span>
-            </div>
-
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-              {filterOptions.map((f) => {
-                const isActive = activeFilter === f.id;
-                return (
-                  <button
-                    key={f.id}
-                    onClick={() => onChangeFilter(f.id)}
-                    className={`px-3 py-2 rounded-xl text-left transition-all shrink-0 border ${
-                      isActive
-                        ? 'bg-rose-950/40 border-rose-500/80 text-white shadow-xs'
-                        : 'bg-[#1b1c24] border-[#2b2d3a] text-zinc-400 hover:text-zinc-200 hover:border-zinc-600'
-                    }`}
-                  >
-                    <span className="text-xs font-semibold block leading-tight">
-                      {f.label}
-                    </span>
-                    <span className="text-[10px] text-zinc-400 block mt-0.5">
-                      {f.desc}
-                    </span>
-                  </button>
-                );
-              })}
             </div>
           </div>
 
@@ -892,6 +858,135 @@ export const CameraBooth: React.FC<CameraBoothProps> = ({
         </div>
 
       </div>
+
+      {/* FACE AR FILTERS MODAL (ลูกเล่นเสริมที่ซ่อนอยู่ในปุ่ม) */}
+      {isFaceFilterModalOpen && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200"
+          onClick={() => setIsFaceFilterModalOpen(false)}
+        >
+          <div 
+            className="bg-[#16171f] border border-[#2c2e3c] rounded-2xl max-w-xl w-full p-5 shadow-2xl flex flex-col max-h-[85vh] space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-[#262833]">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-pink-500 via-rose-500 to-amber-500 flex items-center justify-center text-white text-sm shadow-md">
+                  <Smile className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <span>ลูกเล่นฟิลเตอร์หน้า AR (Face Filters)</span>
+                    {activeFaceFilter !== 'none' && (
+                      <span className="text-[10px] bg-rose-500/20 text-rose-300 border border-rose-500/30 px-2 py-0.5 rounded-full font-medium">
+                        กำลังใช้งาน: {currentFace?.name}
+                      </span>
+                    )}
+                  </h3>
+                  <p className="text-[11px] text-zinc-400">
+                    ลูกเล่นเสริมขยับตามใบหน้าจริง (เช่น น้องหมาแลบลิ้น, แว่นหัวใจ, หูแมว)
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsFaceFilterModalOpen(false)}
+                className="w-8 h-8 rounded-lg bg-[#222430] hover:bg-[#2c2f3f] text-zinc-400 hover:text-white flex items-center justify-center transition-colors"
+                title="ปิดหน้าต่าง"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Categories Tabs */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+              {[
+                { id: 'all', label: 'ทั้งหมด' },
+                { id: 'cute', label: '🐾 สัตว์คาวาอี้' },
+                { id: 'trendy', label: '🕶️ Y2K & แฟชั่น' },
+                { id: 'beauty', label: '👑 มงกุฎ & เจ้าหญิง' },
+                { id: 'funny', label: '😭 มีมฮาๆ' }
+              ].map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => setFaceFilterCategory(cat.id)}
+                  className={`px-3 py-1 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap ${
+                    faceFilterCategory === cat.id
+                      ? 'bg-rose-600 text-white shadow-xs'
+                      : 'bg-[#1e2029] text-zinc-400 hover:text-white hover:bg-[#282a36]'
+                  }`}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Filter Cards Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 overflow-y-auto pr-1 max-h-[46vh] scrollbar-thin">
+              {filteredFaceFilters.map((ff) => {
+                const isSelected = activeFaceFilter === ff.id;
+                return (
+                  <button
+                    key={ff.id}
+                    onClick={() => {
+                      setActiveFaceFilter(ff.id);
+                      soundFX.playPop();
+                    }}
+                    className={`flex items-start gap-3 p-3 rounded-xl transition-all text-left border ${
+                      isSelected
+                        ? 'bg-rose-950/40 border-rose-500 text-white shadow-sm ring-1 ring-rose-500/40'
+                        : 'bg-[#1a1b24] border-[#292b38] text-zinc-300 hover:bg-[#21232e] hover:border-zinc-600'
+                    }`}
+                  >
+                    <span className="text-2xl shrink-0 p-1 bg-black/30 rounded-lg">{ff.icon}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-xs font-bold block truncate">
+                          {ff.name}
+                        </span>
+                        {isSelected && (
+                          <span className="text-[10px] bg-rose-600 text-white font-bold px-1.5 py-0.5 rounded-full shrink-0">
+                            เลือกอยู่
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-zinc-400 block mt-0.5 line-clamp-2 leading-relaxed">
+                        {ff.tagline}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Modal Actions / Footer */}
+            <div className="pt-3 border-t border-[#262833] flex items-center justify-between gap-3">
+              {activeFaceFilter !== 'none' ? (
+                <button
+                  onClick={() => {
+                    setActiveFaceFilter('none');
+                    soundFX.playPop();
+                  }}
+                  className="text-xs text-rose-400 hover:text-rose-300 font-semibold px-3 py-1.5 rounded-lg border border-rose-500/30 hover:border-rose-500/60 transition-colors flex items-center gap-1.5"
+                >
+                  <span>🚫 ปิดฟิลเตอร์หน้า (ใช้กล้องปกติ)</span>
+                </button>
+              ) : (
+                <span className="text-xs text-zinc-500">
+                  สถานะ: กล้องปกติ 100% (ไม่มีฟิลเตอร์หน้า)
+                </span>
+              )}
+
+              <button
+                onClick={() => setIsFaceFilterModalOpen(false)}
+                className="px-5 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-500 rounded-xl transition-colors ml-auto shadow-sm"
+              >
+                เสร็จสิ้น / ถ่ายรูปต่อ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

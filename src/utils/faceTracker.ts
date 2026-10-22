@@ -50,7 +50,7 @@ export async function getFaceLandmarker(): Promise<FaceLandmarker | null> {
             delegate: 'GPU'
           },
           runningMode: 'VIDEO',
-          numFaces: 1
+          numFaces: 4
         });
       } catch (gpuErr) {
         console.warn('FaceLandmarker GPU delegate failed, falling back to CPU:', gpuErr);
@@ -61,7 +61,7 @@ export async function getFaceLandmarker(): Promise<FaceLandmarker | null> {
             delegate: 'CPU'
           },
           runningMode: 'VIDEO',
-          numFaces: 1
+          numFaces: 4
         });
       }
 
@@ -77,12 +77,18 @@ export async function getFaceLandmarker(): Promise<FaceLandmarker | null> {
   return initPromise;
 }
 
-// Smoothing state to eliminate jitter
-let smoothedFace: TrackedFace | null = null;
+// Multi-face smoothing state to eliminate jitter for all detected faces
+const smoothedFacesMap = new Map<number, TrackedFace>();
 
-export function smoothFaceTracking(current: TrackedFace, lerpFactor: number = 0.45): TrackedFace {
-  if (!smoothedFace || !smoothedFace.hasFace) {
-    smoothedFace = { ...current };
+export function smoothFaceTracking(
+  current: TrackedFace,
+  lerpFactor: number = 0.45,
+  faceIndex: number = 0
+): TrackedFace {
+  const previous = smoothedFacesMap.get(faceIndex);
+  if (!previous || !previous.hasFace) {
+    const clone = { ...current };
+    smoothedFacesMap.set(faceIndex, clone);
     return current;
   }
 
@@ -93,39 +99,40 @@ export function smoothFaceTracking(current: TrackedFace, lerpFactor: number = 0.
   });
 
   // Calculate smooth angle considering circular wrap
-  let angleDiff = current.angle - smoothedFace.angle;
+  let angleDiff = current.angle - previous.angle;
   while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
   while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-  const smoothAngle = smoothedFace.angle + angleDiff * lerpFactor;
+  const smoothAngle = previous.angle + angleDiff * lerpFactor;
 
-  smoothedFace = {
+  const updated: TrackedFace = {
     hasFace: true,
-    leftEye: lerpPt(smoothedFace.leftEye, current.leftEye),
-    rightEye: lerpPt(smoothedFace.rightEye, current.rightEye),
-    eyeCenter: lerpPt(smoothedFace.eyeCenter, current.eyeCenter),
-    noseBridge: lerpPt(smoothedFace.noseBridge, current.noseBridge),
-    noseTip: lerpPt(smoothedFace.noseTip, current.noseTip),
-    forehead: lerpPt(smoothedFace.forehead, current.forehead),
-    chin: lerpPt(smoothedFace.chin, current.chin),
-    leftCheek: lerpPt(smoothedFace.leftCheek, current.leftCheek),
-    rightCheek: lerpPt(smoothedFace.rightCheek, current.rightCheek),
-    mouthCenter: lerpPt(smoothedFace.mouthCenter, current.mouthCenter),
-    mouthTop: lerpPt(smoothedFace.mouthTop, current.mouthTop),
-    mouthBottom: lerpPt(smoothedFace.mouthBottom, current.mouthBottom),
-    mouthLeft: lerpPt(smoothedFace.mouthLeft, current.mouthLeft),
-    mouthRight: lerpPt(smoothedFace.mouthRight, current.mouthRight),
+    leftEye: lerpPt(previous.leftEye, current.leftEye),
+    rightEye: lerpPt(previous.rightEye, current.rightEye),
+    eyeCenter: lerpPt(previous.eyeCenter, current.eyeCenter),
+    noseBridge: lerpPt(previous.noseBridge, current.noseBridge),
+    noseTip: lerpPt(previous.noseTip, current.noseTip),
+    forehead: lerpPt(previous.forehead, current.forehead),
+    chin: lerpPt(previous.chin, current.chin),
+    leftCheek: lerpPt(previous.leftCheek, current.leftCheek),
+    rightCheek: lerpPt(previous.rightCheek, current.rightCheek),
+    mouthCenter: lerpPt(previous.mouthCenter, current.mouthCenter),
+    mouthTop: lerpPt(previous.mouthTop, current.mouthTop),
+    mouthBottom: lerpPt(previous.mouthBottom, current.mouthBottom),
+    mouthLeft: lerpPt(previous.mouthLeft, current.mouthLeft),
+    mouthRight: lerpPt(previous.mouthRight, current.mouthRight),
     angle: smoothAngle,
-    scale: lerp(smoothedFace.scale, current.scale),
-    eyeDistance: lerp(smoothedFace.eyeDistance, current.eyeDistance),
-    faceWidth: lerp(smoothedFace.faceWidth, current.faceWidth),
-    mouthOpenRatio: lerp(smoothedFace.mouthOpenRatio, current.mouthOpenRatio)
+    scale: lerp(previous.scale, current.scale),
+    eyeDistance: lerp(previous.eyeDistance, current.eyeDistance),
+    faceWidth: lerp(previous.faceWidth, current.faceWidth),
+    mouthOpenRatio: lerp(previous.mouthOpenRatio, current.mouthOpenRatio)
   };
 
-  return smoothedFace;
+  smoothedFacesMap.set(faceIndex, updated);
+  return updated;
 }
 
 export function resetSmoothedFace() {
-  smoothedFace = null;
+  smoothedFacesMap.clear();
 }
 
 // Extract geometric landmark metrics from 478 MediaPipe points
