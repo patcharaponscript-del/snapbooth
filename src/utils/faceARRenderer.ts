@@ -52,13 +52,6 @@ export const TIKTOK_FACE_FILTERS: FaceFilterDef[] = [
     category: 'trendy'
   },
   {
-    id: 'soft-glam',
-    name: 'หน้าสวยเป๊ะตัวแม่ (Clean Girl Glam)',
-    tagline: 'อายไลเนอร์เฉี่ยวคม + ปากฉ่ำวาว 3D + ไฮไลท์โหนกแก้มโกลว์',
-    icon: '💄',
-    category: 'beauty'
-  },
-  {
     id: 'teddy-bear',
     name: 'หมีน้อยเท็ดดี้เกาหลี (Teddy Bear)',
     tagline: 'หูหมีเท็ดดี้นุ่มฟูบนหัว + จมูกหมีคาวาอี้ + แก้มกลมชมพู',
@@ -67,9 +60,9 @@ export const TIKTOK_FACE_FILTERS: FaceFilterDef[] = [
   },
   {
     id: 'tiktok-cyber-devil',
-    name: 'เดวิลนีออนเขาแดง (Neon Devil)',
-    tagline: 'เขาปีศาจเรืองแสงนีออนสีแดงม่วง + ตาเฉี่ยวโกธิค + ปากดาร์กเบอร์รี่',
-    icon: '😈',
+    name: 'จอมมารเขาเพลิงดุดัน (Fierce Demon Lord)',
+    tagline: 'เขาปีศาจหินออบซิเดียนลาวาดุดัน + ดวงตาเพลิงอสูร + สะเก็ดไฟ (ไม่มีลิปสติก)',
+    icon: '🔥',
     category: 'trendy'
   },
   {
@@ -719,82 +712,7 @@ export function renderFaceARFilter(
     }
 
     // ----------------------------------------------------
-    // 6. CLEAN GIRL SOFT GLAM (หน้าสวยเป๊ะ สไตล์ตัวแม่)
-    // ----------------------------------------------------
-    case 'soft-glam': {
-      // 1. Sleek winged liner on eye corners
-      const drawEyeliner = (eye: { x: number; y: number }, isLeft: boolean) => {
-        ctx.save();
-        ctx.translate(eye.x, eye.y);
-        ctx.rotate(roll);
-        ctx.scale(baseScale, baseScale);
-
-        const dir = isLeft ? -1 : 1;
-        const eW = 26;
-
-        ctx.strokeStyle = '#09090B';
-        ctx.lineWidth = 3;
-        ctx.lineCap = 'round';
-
-        ctx.beginPath();
-        ctx.moveTo(-dir * eW * 0.7, 1);
-        ctx.quadraticCurveTo(0, -eW * 0.35, dir * eW * 0.75, -2);
-        ctx.lineTo(dir * (eW * 1.3), -eW * 0.42);
-        ctx.stroke();
-
-        // Eye pupil twinkle
-        ctx.beginPath();
-        ctx.arc(dir * 2, -1, 2.5, 0, Math.PI * 2);
-        ctx.fillStyle = '#FFFFFF';
-        ctx.fill();
-
-        ctx.restore();
-      };
-
-      drawEyeliner(leftEye, true);
-      drawEyeliner(rightEye, false);
-
-      // 2. 3D Glossy Lip Glow
-      ctx.save();
-      ctx.translate(mouthCenter.x, mouthCenter.y);
-      ctx.rotate(roll);
-      ctx.scale(baseScale, baseScale);
-
-      const lipW = Math.max(26, (Math.hypot(mouthRight.x - mouthLeft.x, mouthRight.y - mouthLeft.y) / baseScale) * 0.55);
-      const lipH = 15;
-
-      ctx.beginPath();
-      ctx.ellipse(0, 0, lipW, lipH, 0, 0, Math.PI * 2);
-      const gLip = ctx.createRadialGradient(0, 0, 0, 0, 0, lipW);
-      gLip.addColorStop(0, 'rgba(225, 29, 72, 0.7)');
-      gLip.addColorStop(0.7, 'rgba(190, 18, 60, 0.5)');
-      gLip.addColorStop(1, 'rgba(190, 18, 60, 0)');
-      ctx.fillStyle = gLip;
-      ctx.fill();
-
-      // Lower lip glossy reflection
-      ctx.beginPath();
-      ctx.ellipse(0, 3.5, lipW * 0.45, 3.5, 0, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-      ctx.fill();
-
-      ctx.restore();
-
-      // 3. Sun-kissed Bronze Cheekbone Glow
-      [leftCheek, rightCheek].forEach((chk) => {
-        const glow = ctx.createRadialGradient(chk.x, chk.y, 0, chk.x, chk.y, 42 * baseScale);
-        glow.addColorStop(0, 'rgba(251, 146, 60, 0.4)');
-        glow.addColorStop(1, 'rgba(251, 146, 60, 0)');
-        ctx.fillStyle = glow;
-        ctx.beginPath();
-        ctx.arc(chk.x, chk.y, 42 * baseScale, 0, Math.PI * 2);
-        ctx.fill();
-      });
-      break;
-    }
-
-    // ----------------------------------------------------
-    // 7. TEDDY BEAR CUTE EARS (หมีน้อยเท็ดดี้เกาหลี)
+    // 6. TEDDY BEAR CUTE EARS (หมีน้อยเท็ดดี้เกาหลี)
     // ----------------------------------------------------
     case 'teddy-bear': {
       // Round fluffy teddy ears on headCrown
@@ -871,59 +789,240 @@ export function renderFaceARFilter(
     }
 
     // ----------------------------------------------------
-    // 8. NEON CYBER DEVIL (เดวิลนีออนเขาแดง)
+    // 7. FIERCE INFERNAL DEMON LORD (จอมมารเขาเพลิงดุดัน - ไม่ใส่ลิปสติก)
     // ----------------------------------------------------
     case 'tiktok-cyber-devil': {
+      // 1. Epic Detailed Obsidian & Lava Horns (Sweeping ferocious curve with ridges & magma fissures)
       ctx.save();
       ctx.translate(headCrown.x, headCrown.y);
       ctx.rotate(roll);
       ctx.scale(baseScale, baseScale);
 
-      const hornDist = 58;
-      const hornH = 65;
+      const hornDist = 50;
+      const hornH = 105;
+      const hornBaseW = 26;
+      const pulse = 0.82 + 0.18 * Math.sin(timeMs * 0.006);
 
       [-1, 1].forEach((dir) => {
         ctx.save();
-        ctx.translate(dir * hornDist, -8);
-        ctx.rotate(dir * 0.35);
+        ctx.translate(dir * hornDist, -12);
+        ctx.rotate(dir * 0.28);
 
-        // Neon Glow
+        // Sinister Hellfire Aura
         ctx.shadowColor = '#DC2626';
-        ctx.shadowBlur = 18;
+        ctx.shadowBlur = 25 * pulse;
 
-        // Curved horn
+        // Base Horn Silhouette (Curving outward then sweeping aggressively upward & inward to a sharp tip)
         ctx.beginPath();
-        ctx.moveTo(-11, 0);
-        ctx.quadraticCurveTo(dir * -16, -hornH * 0.6, dir * -34, -hornH);
-        ctx.quadraticCurveTo(dir * -5, -hornH * 0.5, 11, 0);
+        ctx.moveTo(-dir * hornBaseW * 0.5, 0);
+        // Outer curved edge
+        ctx.bezierCurveTo(
+          dir * hornBaseW * 0.8, -hornH * 0.25,
+          dir * hornBaseW * 2.2, -hornH * 0.65,
+          dir * hornBaseW * 1.3, -hornH
+        );
+        // Inner curved edge to tip
+        ctx.bezierCurveTo(
+          dir * hornBaseW * 0.4, -hornH * 0.72,
+          -dir * hornBaseW * 0.2, -hornH * 0.35,
+          -dir * hornBaseW * 0.5, 0
+        );
         ctx.closePath();
 
-        const hornGrad = ctx.createLinearGradient(0, 0, 0, -hornH);
-        hornGrad.addColorStop(0, '#7F1D1D');
-        hornGrad.addColorStop(0.5, '#EF4444');
-        hornGrad.addColorStop(1, '#FCA5A5');
+        // Obsidian Horn Body Gradient (Deep abyssal charcoal/slate with blood-red rim)
+        const hornGrad = ctx.createLinearGradient(0, 0, dir * hornBaseW * 1.5, -hornH);
+        hornGrad.addColorStop(0, '#09090B');
+        hornGrad.addColorStop(0.35, '#18181B');
+        hornGrad.addColorStop(0.7, '#27272A');
+        hornGrad.addColorStop(0.9, '#450A0A');
+        hornGrad.addColorStop(1, '#991B1B');
         ctx.fillStyle = hornGrad;
         ctx.fill();
 
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = '#FFFFFF';
+        // Sharp highlight & dark shadow strokes
+        ctx.lineWidth = 2.5;
+        ctx.strokeStyle = '#450A0A';
         ctx.stroke();
+
+        // Horn Chitinous Growth Ridges / Segment Bands (Giving realistic demonic 3D horn texture)
+        const ridgeSteps = [0.18, 0.32, 0.46, 0.6, 0.74, 0.86];
+        ridgeSteps.forEach((t) => {
+          const rx = dir * hornBaseW * (0.1 + t * 1.1);
+          const ry = -hornH * t;
+          const rWidth = hornBaseW * (1 - t * 0.7);
+
+          ctx.beginPath();
+          ctx.ellipse(rx, ry, rWidth * 0.6, 3.2, dir * 0.35, 0, Math.PI * 2);
+          ctx.strokeStyle = 'rgba(10, 10, 12, 0.9)';
+          ctx.lineWidth = 3;
+          ctx.stroke();
+
+          // Highlight edge on each ridge
+          ctx.beginPath();
+          ctx.ellipse(rx - dir * 1.5, ry - 1, rWidth * 0.5, 1.8, dir * 0.35, Math.PI, Math.PI * 2);
+          ctx.strokeStyle = 'rgba(239, 68, 68, 0.65)';
+          ctx.lineWidth = 1.6;
+          ctx.stroke();
+        });
+
+        // Pulsing Molten Magma Fissure Lines (Glowing fiery veins cracked through the obsidian)
+        ctx.save();
+        ctx.shadowColor = '#F97316';
+        ctx.shadowBlur = 12 * pulse;
+        ctx.lineWidth = 2.2;
+        ctx.strokeStyle = `rgba(254, 240, 138, ${0.75 * pulse})`;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        ctx.beginPath();
+        ctx.moveTo(dir * 2, -6);
+        ctx.lineTo(dir * (hornBaseW * 0.3), -hornH * 0.22);
+        ctx.lineTo(dir * (hornBaseW * 0.15), -hornH * 0.36);
+        ctx.lineTo(dir * (hornBaseW * 0.7), -hornH * 0.55);
+        ctx.lineTo(dir * (hornBaseW * 0.5), -hornH * 0.7);
+        ctx.lineTo(dir * (hornBaseW * 1.1), -hornH * 0.92);
+        ctx.stroke();
+
+        // Secondary small molten branch
+        ctx.lineWidth = 1.4;
+        ctx.strokeStyle = `rgba(249, 115, 22, ${0.85 * pulse})`;
+        ctx.beginPath();
+        ctx.moveTo(dir * (hornBaseW * 0.7), -hornH * 0.55);
+        ctx.lineTo(dir * (hornBaseW * 1.1), -hornH * 0.62);
+        ctx.stroke();
+        ctx.restore();
+
+        // Tip glowing embers & razor needle point
+        ctx.beginPath();
+        ctx.arc(dir * hornBaseW * 1.3, -hornH, 2.5, 0, Math.PI * 2);
+        ctx.fillStyle = '#FEF08A';
+        ctx.shadowColor = '#EF4444';
+        ctx.shadowBlur = 10;
+        ctx.fill();
 
         ctx.restore();
       });
 
+      // Animated rising fiery ember sparks floating from horns into the air
+      for (let i = 0; i < 9; i++) {
+        const seed = i * 1.618;
+        const emberCycle = ((timeMs * 0.0018 + seed) % 2) / 2; // 0 to 1
+        const side = i % 2 === 0 ? -1 : 1;
+        const startX = side * (hornDist + 10 + (i % 3) * 12);
+        const startY = -40 - (i % 4) * 16;
+        const ex = startX + Math.sin(timeMs * 0.004 + seed) * 18 * side;
+        const ey = startY - emberCycle * 70;
+        const eAlpha = Math.sin(emberCycle * Math.PI) * 0.9;
+        const eSize = (2.2 + (i % 3) * 1.2) * (1 - emberCycle * 0.4);
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(ex, ey, eSize, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(251, 146, 60, ${eAlpha})`;
+        ctx.shadowColor = '#EF4444';
+        ctx.shadowBlur = 8;
+        ctx.fill();
+        ctx.restore();
+      }
+
       ctx.restore();
 
-      // Dark goth berry lip stain
+      // 2. Forehead Sinister Demonic Mark / Glowing Sigil
       ctx.save();
-      ctx.translate(mouthCenter.x, mouthCenter.y);
+      ctx.translate(forehead.x, forehead.y - 12 * baseScale);
       ctx.rotate(roll);
       ctx.scale(baseScale, baseScale);
+
+      ctx.shadowColor = '#DC2626';
+      ctx.shadowBlur = 14 * pulse;
+      ctx.strokeStyle = `rgba(239, 68, 68, ${0.85 * pulse})`;
+      ctx.lineWidth = 2.4;
+      ctx.lineCap = 'round';
+
+      // Demonic Inverted Crest
       ctx.beginPath();
-      ctx.ellipse(0, 0, 24, 11, 0, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(136, 19, 55, 0.65)';
+      // Central vertical crimson horn rune
+      ctx.moveTo(0, -18);
+      ctx.lineTo(0, 10);
+      // Sweeping demonic wings of the sigil
+      ctx.moveTo(-16, -10);
+      ctx.quadraticCurveTo(0, -2, 16, -10);
+      ctx.moveTo(-12, -2);
+      ctx.quadraticCurveTo(0, 5, 12, -2);
+      ctx.stroke();
+
+      // Core pulsing demonic eye rune at forehead center
+      ctx.beginPath();
+      ctx.arc(0, 1, 3.5, 0, Math.PI * 2);
+      ctx.fillStyle = '#FEF08A';
       ctx.fill();
+
       ctx.restore();
+
+      // 3. Fierce Glowing Demon Eyes & Dark Under-eye Demonic Veins (NO LIPSTICK!)
+      const drawDemonEyes = (eye: { x: number; y: number }, isLeft: boolean) => {
+        ctx.save();
+        ctx.translate(eye.x, eye.y);
+        ctx.rotate(roll);
+        ctx.scale(baseScale, baseScale);
+
+        const dir = isLeft ? -1 : 1;
+        const eyeW = 26;
+
+        // Dark gothic smokey shadow & fierce demon glare eyeliner
+        ctx.beginPath();
+        ctx.moveTo(-dir * eyeW * 0.6, 2);
+        ctx.quadraticCurveTo(0, -eyeW * 0.38, dir * eyeW * 0.7, -3);
+        ctx.lineTo(dir * (eyeW * 1.35), -eyeW * 0.55);
+        ctx.strokeStyle = '#09090B';
+        ctx.lineWidth = 3.6;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+
+        // Sinister Dark Crimson Veins branching downward from outer eye across cheekbone
+        ctx.strokeStyle = `rgba(185, 28, 28, ${0.75 * pulse})`;
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.moveTo(dir * eyeW * 0.85, -1);
+        ctx.lineTo(dir * (eyeW * 1.2), 12);
+        ctx.lineTo(dir * (eyeW * 1.0), 22);
+        ctx.lineTo(dir * (eyeW * 1.3), 32);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(dir * (eyeW * 1.2), 12);
+        ctx.lineTo(dir * (eyeW * 1.5), 18);
+        ctx.stroke();
+
+        // Glowing Crimson Demon Pupil Flare
+        ctx.save();
+        ctx.shadowColor = '#EF4444';
+        ctx.shadowBlur = 10 * pulse;
+
+        // Red Demonic Iris Ring
+        ctx.beginPath();
+        ctx.arc(dir * 1.5, -0.5, 4.5, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(220, 38, 38, 0.9)';
+        ctx.fill();
+
+        // Blazing core pupil
+        ctx.beginPath();
+        ctx.ellipse(dir * 1.5, -0.5, 1.6, 3.8, 0, 0, Math.PI * 2);
+        ctx.fillStyle = '#FEF08A';
+        ctx.fill();
+
+        // Specular flare
+        ctx.beginPath();
+        ctx.arc(dir * 0.5, -2, 1.2, 0, Math.PI * 2);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fill();
+        ctx.restore();
+
+        ctx.restore();
+      };
+
+      drawDemonEyes(leftEye, true);
+      drawDemonEyes(rightEye, false);
       break;
     }
 
