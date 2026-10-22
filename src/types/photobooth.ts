@@ -1,12 +1,16 @@
 export type FilterType = 
   | 'normal'
+  | 'softglow'
   | 'vintage'
   | 'noir'
   | 'sepia'
   | 'warm90s'
+  | 'fujifilm'
+  | 'sunset'
   | 'cyberpunk'
   | 'pastel'
-  | 'filmgrain';
+  | 'filmgrain'
+  | 'cinematic';
 
 export type LayoutType = 
   | '4-cut-strip'  // Classic 4 vertical shots
@@ -27,7 +31,8 @@ export interface PlacedSticker {
   id: string;
   stickerId: string;
   symbol: string;
-  type: 'emoji' | 'badge' | 'doodle';
+  type: 'emoji' | 'badge' | 'doodle' | 'graphic';
+  svgContent?: string;
   x: number; // percentage 0-100 of strip container
   y: number; // percentage 0-100 of strip container
   scale: number; // 0.5 to 2.5

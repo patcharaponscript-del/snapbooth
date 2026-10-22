@@ -17,41 +17,44 @@ import {
 import { SAMPLE_PHOTO_POSES } from './data/samplePhotos';
 import { renderPhotostripToCanvas } from './utils/canvasExport';
 
+import { ILLUSTRATED_STICKERS } from './data/illustratedStickers';
+
 const DEFAULT_SETTINGS: StripSettings = {
   layout: '4-cut-strip',
-  filter: 'vintage',
-  frameThemeId: 'classic-white',
+  filter: 'softglow',
+  frameThemeId: 'pastel-blush',
   title: 'SNAPBOOTH',
-  subtitle: 'Photobooth Studio',
+  subtitle: 'Seoul Photo Studio ♡',
   showDate: true,
   dateFormat: 'korean',
   fontFamily: 'sans',
   stickers: [
     {
       id: 'init_stk_1',
-      stickerId: 'sparkles',
-      symbol: '✨',
-      type: 'emoji',
-      x: 82,
-      y: 18,
-      scale: 1.1,
-      rotation: 12
+      stickerId: 'kawaii-pink-bow',
+      symbol: 'Pink Satin Bow',
+      type: 'graphic',
+      svgContent: ILLUSTRATED_STICKERS[0].svg,
+      x: 78,
+      y: 16,
+      scale: 1.15,
+      rotation: 10
     },
     {
       id: 'init_stk_2',
       stickerId: 'badge-snap',
       symbol: 'SNAP!',
       type: 'badge',
-      x: 18,
+      x: 20,
       y: 72,
       scale: 0.9,
       rotation: -8
     }
   ],
   doodles: [],
-  grainIntensity: 25,
-  brightness: 100,
-  contrast: 105
+  grainIntensity: 15,
+  brightness: 104,
+  contrast: 102
 };
 
 const INITIAL_DONATIONS: CocoaDonation[] = [

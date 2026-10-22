@@ -1,5 +1,6 @@
-import { CapturedPhoto, StripSettings, FrameTheme } from '../types/photobooth';
+import { CapturedPhoto, StripSettings, FrameTheme, PlacedSticker } from '../types/photobooth';
 import { FRAME_THEMES } from '../data/frameThemes';
+import { svgToDataUrl } from '../data/illustratedStickers';
 
 // Helper to load an image element from dataUrl
 function loadImage(src: string): Promise<HTMLImageElement> {
@@ -39,6 +40,8 @@ export function formatPhotoboothDate(timestamp: number, format: StripSettings['d
 export function getFilterCssString(filter: StripSettings['filter'], brightness = 100, contrast = 100): string {
   const base = `brightness(${brightness}%) contrast(${contrast}%)`;
   switch (filter) {
+    case 'softglow':
+      return `${base} brightness(106%) contrast(92%) saturate(112%)`;
     case 'vintage':
       return `${base} sepia(25%) saturate(125%) hue-rotate(-10deg)`;
     case 'noir':
@@ -47,12 +50,18 @@ export function getFilterCssString(filter: StripSettings['filter'], brightness =
       return `${base} sepia(70%) saturate(110%) brightness(95%)`;
     case 'warm90s':
       return `${base} sepia(15%) saturate(140%) hue-rotate(5deg) contrast(110%)`;
+    case 'fujifilm':
+      return `${base} brightness(102%) contrast(108%) saturate(120%) hue-rotate(-6deg)`;
+    case 'sunset':
+      return `${base} brightness(104%) contrast(106%) sepia(35%) saturate(135%) hue-rotate(-12deg)`;
     case 'cyberpunk':
       return `${base} saturate(160%) hue-rotate(180deg) contrast(120%)`;
     case 'pastel':
       return `${base} saturate(90%) brightness(108%) contrast(95%)`;
     case 'filmgrain':
       return `${base} contrast(115%) sepia(10%)`;
+    case 'cinematic':
+      return `${base} brightness(97%) contrast(122%) saturate(118%) hue-rotate(8deg)`;
     default:
       return base;
   }
@@ -343,7 +352,7 @@ export async function renderPhotostripToCanvas(
     }
   }
 
-  // 6. Draw Stickers
+  // 6. Draw Stickers (Emoji, Badges, and Illustrated Graphic Vectors)
   for (const sticker of settings.stickers) {
     ctx.save();
     const posX = (sticker.x / 100) * width;
@@ -352,9 +361,18 @@ export async function renderPhotostripToCanvas(
     ctx.translate(posX, posY);
     ctx.rotate((sticker.rotation * Math.PI) / 180);
 
-    const baseSize = 44 * (sticker.scale || 1);
+    const baseSize = 50 * (sticker.scale || 1);
 
-    if (sticker.type === 'badge') {
+    if (sticker.type === 'graphic' && sticker.svgContent) {
+      try {
+        const graphicImg = await loadImage(svgToDataUrl(sticker.svgContent));
+        const gw = baseSize * 1.5;
+        const gh = (gw / (graphicImg.width || 100)) * (graphicImg.height || 80);
+        ctx.drawImage(graphicImg, -gw / 2, -gh / 2, gw, gh);
+      } catch (e) {
+        console.warn('Could not draw vector sticker:', e);
+      }
+    } else if (sticker.type === 'badge') {
       ctx.font = `bold ${Math.round(18 * (sticker.scale || 1))}px "Space Mono", sans-serif`;
       const textMetrics = ctx.measureText(sticker.symbol);
       const padX = 14 * sticker.scale;

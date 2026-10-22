@@ -19,8 +19,8 @@ import {
   Undo,
   Play,
   Square,
-  FlipHorizontal,
-  Coffee
+  Coffee,
+  Heart
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { 
@@ -34,6 +34,7 @@ import {
 } from '../types/photobooth';
 import { FRAME_THEMES } from '../data/frameThemes';
 import { AVAILABLE_STICKERS, StickerDefinition } from '../data/stickers';
+import { ILLUSTRATED_STICKERS, GraphicSticker } from '../data/illustratedStickers';
 import { soundFX } from '../utils/audio';
 import { 
   getFilterCssString, 
@@ -51,13 +52,13 @@ interface StudioEditorProps {
 }
 
 const DOODLE_COLORS = [
-  { name: 'White', hex: '#FFFFFF' },
+  { name: 'White Chalk', hex: '#FFFFFF' },
   { name: 'Neon Pink', hex: '#F43F5E' },
-  { name: 'Sunflower', hex: '#FACC15' },
-  { name: 'Matcha', hex: '#22C55E' },
+  { name: 'Sunflower Yellow', hex: '#FACC15' },
+  { name: 'Matcha Green', hex: '#22C55E' },
   { name: 'Sky Cyan', hex: '#38BDF8' },
-  { name: 'Lavender', hex: '#C084FC' },
-  { name: 'Charcoal', hex: '#18181B' }
+  { name: 'Lilac Purple', hex: '#C084FC' },
+  { name: 'Charcoal Black', hex: '#18181B' }
 ];
 
 export const StudioEditor: React.FC<StudioEditorProps> = ({
@@ -73,7 +74,9 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
   const [isExporting, setIsExporting] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
-  const [stickerCategory, setStickerCategory] = useState<string>('all');
+  const [stickerTypeTab, setStickerTypeTab] = useState<'graphic' | 'emoji'>('graphic');
+  const [graphicCategory, setGraphicCategory] = useState<string>('all');
+  const [emojiCategory, setEmojiCategory] = useState<string>('all');
   const [zoomLevel, setZoomLevel] = useState<number>(1);
 
   // Doodle pen states
@@ -104,8 +107,29 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
     return () => clearInterval(interval);
   }, [isBoomerangPlaying, photos.length]);
 
-  // Add a sticker to center of strip
-  const handleAddSticker = (def: StickerDefinition) => {
+  // Add an illustrated vector graphic sticker
+  const handleAddGraphicSticker = (graphic: GraphicSticker) => {
+    soundFX.playPop();
+    const newSticker: PlacedSticker = {
+      id: `gstk_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      stickerId: graphic.id,
+      symbol: graphic.name,
+      type: 'graphic',
+      svgContent: graphic.svg,
+      x: 50 + (Math.random() * 20 - 10),
+      y: 40 + (Math.random() * 20 - 10),
+      scale: 1.1,
+      rotation: Math.round(Math.random() * 20 - 10)
+    };
+
+    updateSettings({
+      stickers: [...settings.stickers, newSticker]
+    });
+    setSelectedStickerId(newSticker.id);
+  };
+
+  // Add an emoji or stamp sticker
+  const handleAddEmojiSticker = (def: StickerDefinition) => {
     soundFX.playPop();
     const newSticker: PlacedSticker = {
       id: `stk_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
@@ -301,9 +325,14 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
 
   const selectedSticker = settings.stickers.find((s) => s.id === selectedStickerId);
 
-  const filteredStickers = AVAILABLE_STICKERS.filter((s) => {
-    if (stickerCategory === 'all') return true;
-    return s.category === stickerCategory;
+  const filteredGraphics = ILLUSTRATED_STICKERS.filter((g) => {
+    if (graphicCategory === 'all') return true;
+    return g.category === graphicCategory;
+  });
+
+  const filteredEmojis = AVAILABLE_STICKERS.filter((s) => {
+    if (emojiCategory === 'all') return true;
+    return s.category === emojiCategory;
   });
 
   return (
@@ -331,7 +360,7 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
               </span>
             </h1>
             <p className="text-xs text-zinc-400">
-              Style your frame, doodle on photos, place stickers, and export high-res prints.
+              Style your frame, place cute vector stickers, doodle on photos, and export prints.
             </p>
           </div>
         </div>
@@ -650,7 +679,12 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
                       isSelected ? 'ring-2 ring-rose-500 ring-offset-2 ring-offset-black rounded-lg' : ''
                     }`}
                   >
-                    {stk.type === 'badge' ? (
+                    {stk.type === 'graphic' && stk.svgContent ? (
+                      <div 
+                        className="w-16 h-16 flex items-center justify-center filter drop-shadow-md select-none pointer-events-none"
+                        dangerouslySetInnerHTML={{ __html: stk.svgContent }}
+                      />
+                    ) : stk.type === 'badge' ? (
                       <span className="px-2.5 py-1 bg-rose-600 text-white font-mono font-bold text-xs rounded-md shadow-lg whitespace-nowrap block">
                         {stk.symbol}
                       </span>
@@ -842,25 +876,37 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
             </div>
           )}
 
-          {/* TAB 2: Stickers */}
+          {/* TAB 2: Stickers & Graphic Vectors */}
           {activeTab === 'stickers' && (
             <div className="space-y-4">
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-                {['all', 'cute', 'props', 'vibes', 'stamps'].map((cat) => (
-                  <button
-                    key={cat}
-                    onClick={() => setStickerCategory(cat)}
-                    className={`px-3 py-1 text-xs font-medium rounded-lg capitalize transition-colors whitespace-nowrap ${
-                      stickerCategory === cat
-                        ? 'bg-rose-600 text-white'
-                        : 'bg-[#1b1c24] text-zinc-400 hover:text-white'
-                    }`}
-                  >
-                    {cat}
-                  </button>
-                ))}
+              
+              {/* Type Switcher: Illustrated Graphic Stickers vs Emoji & Badges */}
+              <div className="flex p-1 bg-[#1a1b22] border border-[#292b38] rounded-xl">
+                <button
+                  onClick={() => setStickerTypeTab('graphic')}
+                  className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-colors flex items-center justify-center gap-1.5 ${
+                    stickerTypeTab === 'graphic'
+                      ? 'bg-rose-600 text-white shadow-sm'
+                      : 'text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                  <span>สติกเกอร์ภาพวาด (Graphics)</span>
+                </button>
+                <button
+                  onClick={() => setStickerTypeTab('emoji')}
+                  className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-colors flex items-center justify-center gap-1.5 ${
+                    stickerTypeTab === 'emoji'
+                      ? 'bg-rose-600 text-white shadow-sm'
+                      : 'text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  <Heart className="w-3.5 h-3.5 text-rose-300" />
+                  <span>ไอคอน & แสตมป์</span>
+                </button>
               </div>
 
+              {/* Selected Sticker Fine-tune Controls */}
               {selectedSticker && (
                 <div className="p-3 bg-[#1e202b] rounded-xl border border-rose-500/40 space-y-2.5">
                   <div className="flex items-center justify-between">
@@ -911,28 +957,93 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
                 </div>
               )}
 
-              <div className="grid grid-cols-4 gap-2 max-h-[280px] overflow-y-auto pr-1">
-                {filteredStickers.map((stk) => (
-                  <button
-                    key={stk.id}
-                    onClick={() => handleAddSticker(stk)}
-                    className="p-3 bg-[#1a1b22] hover:bg-[#252733] border border-[#2a2c38] hover:border-rose-500/60 rounded-xl flex flex-col items-center justify-center transition-all group"
-                  >
-                    {stk.type === 'badge' ? (
-                      <span className="text-[10px] font-mono font-bold bg-rose-600 text-white px-1.5 py-0.5 rounded leading-tight">
-                        {stk.symbol}
-                      </span>
-                    ) : (
-                      <span className="text-2xl group-hover:scale-110 transition-transform">
-                        {stk.symbol}
-                      </span>
-                    )}
-                    <span className="text-[9px] text-zinc-400 mt-1 truncate max-w-full">
-                      {stk.label}
-                    </span>
-                  </button>
-                ))}
-              </div>
+              {/* Graphic Stickers Catalog */}
+              {stickerTypeTab === 'graphic' ? (
+                <>
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                    {[
+                      { id: 'all', label: 'ทั้งหมด' },
+                      { id: 'ribbons', label: 'โบว์ & ริบบิ้น' },
+                      { id: 'kawaii', label: 'คาวาอี้' },
+                      { id: 'y2k', label: 'Y2K แว่น&ดาว' },
+                      { id: 'tapes', label: 'เทป & คลิป' },
+                      { id: 'stamps', label: 'แสตมป์เกาหลี' }
+                    ].map((cat) => (
+                      <button
+                        key={cat.id}
+                        onClick={() => setGraphicCategory(cat.id)}
+                        className={`px-2.5 py-1 text-[11px] font-medium rounded-lg transition-colors whitespace-nowrap ${
+                          graphicCategory === cat.id
+                            ? 'bg-rose-600 text-white'
+                            : 'bg-[#1b1c24] text-zinc-400 hover:text-white'
+                        }`}
+                      >
+                        {cat.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2.5 max-h-[280px] overflow-y-auto pr-1">
+                    {filteredGraphics.map((g) => (
+                      <button
+                        key={g.id}
+                        onClick={() => handleAddGraphicSticker(g)}
+                        className="p-3 bg-[#1a1b22] hover:bg-[#252733] border border-[#2a2c38] hover:border-rose-500/60 rounded-xl flex flex-col items-center justify-center transition-all group"
+                      >
+                        <div 
+                          className="w-14 h-14 flex items-center justify-center group-hover:scale-115 transition-transform duration-150"
+                          dangerouslySetInnerHTML={{ __html: g.svg }}
+                        />
+                        <span className="text-[10px] text-zinc-300 font-medium mt-1.5 truncate max-w-full">
+                          {g.name}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                /* Emoji & Badges Catalog */
+                <>
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                    {['all', 'cute', 'props', 'vibes', 'stamps'].map((cat) => (
+                      <button
+                        key={cat}
+                        onClick={() => setEmojiCategory(cat)}
+                        className={`px-3 py-1 text-xs font-medium rounded-lg capitalize transition-colors whitespace-nowrap ${
+                          emojiCategory === cat
+                            ? 'bg-rose-600 text-white'
+                            : 'bg-[#1b1c24] text-zinc-400 hover:text-white'
+                        }`}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-2 max-h-[280px] overflow-y-auto pr-1">
+                    {filteredEmojis.map((stk) => (
+                      <button
+                        key={stk.id}
+                        onClick={() => handleAddEmojiSticker(stk)}
+                        className="p-3 bg-[#1a1b22] hover:bg-[#252733] border border-[#2a2c38] hover:border-rose-500/60 rounded-xl flex flex-col items-center justify-center transition-all group"
+                      >
+                        {stk.type === 'badge' ? (
+                          <span className="text-[10px] font-mono font-bold bg-rose-600 text-white px-1.5 py-0.5 rounded leading-tight">
+                            {stk.symbol}
+                          </span>
+                        ) : (
+                          <span className="text-2xl group-hover:scale-110 transition-transform">
+                            {stk.symbol}
+                          </span>
+                        )}
+                        <span className="text-[9px] text-zinc-400 mt-1 truncate max-w-full">
+                          {stk.label}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
 
               {settings.stickers.length > 0 && (
                 <div className="flex justify-between items-center text-xs text-zinc-400 pt-2 border-t border-[#262833]">
@@ -1127,34 +1238,39 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
             </div>
           )}
 
-          {/* TAB 5: Filters & Analog Tones */}
+          {/* TAB 5: Filters & Film Tones */}
           {activeTab === 'filters' && (
             <div className="space-y-4">
               <div>
                 <label className="text-xs font-semibold text-zinc-300 block mb-2">
-                  Film Filter
+                  Film Color Filter (12 สไตล์)
                 </label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-2 max-h-[260px] overflow-y-auto pr-1">
                   {[
-                    { id: 'normal', label: 'Natural' },
-                    { id: 'vintage', label: 'Kodachrome' },
-                    { id: 'noir', label: 'Noir B&W' },
-                    { id: 'sepia', label: 'Sepia 70s' },
-                    { id: 'warm90s', label: 'Golden 90s' },
-                    { id: 'pastel', label: 'Seoul Pastel' },
-                    { id: 'filmgrain', label: 'Analog Grain' },
-                    { id: 'cyberpunk', label: 'Tokyo Neon' }
+                    { id: 'normal', label: 'Natural', desc: 'คลีนใสธรรมชาติ' },
+                    { id: 'softglow', label: 'Seoul Glow', desc: 'ละมุนผิว เกาหลี' },
+                    { id: 'vintage', label: 'Kodachrome', desc: 'ฟิล์มโกดัก 70s' },
+                    { id: 'fujifilm', label: 'Fuji Chrome', desc: 'เขียวมัทฉะสดใส' },
+                    { id: 'warm90s', label: 'Golden 90s', desc: 'แดดสีทองอบอุ่น' },
+                    { id: 'sunset', label: 'Sunset Aura', desc: 'แสงอาทิตย์ตกดิน' },
+                    { id: 'pastel', label: 'Pastel Dream', desc: 'ฮาราจูกุนุ่มฟุ้ง' },
+                    { id: 'noir', label: 'Noir B&W', desc: 'ขาวดำสตรีทเข้ม' },
+                    { id: 'sepia', label: 'Sepia Vintage', desc: 'แอมเบอร์ย้อนยุค' },
+                    { id: 'filmgrain', label: '35mm Grain', desc: 'เกรนฟิล์มอะนาล็อก' },
+                    { id: 'cyberpunk', label: 'Tokyo Neon', desc: 'ม่วงนีออนไซเบอร์' },
+                    { id: 'cinematic', label: 'Teal & Orange', desc: 'โทนภาพยนตร์' }
                   ].map((flt) => (
                     <button
                       key={flt.id}
                       onClick={() => updateSettings({ filter: flt.id as FilterType })}
-                      className={`p-2 rounded-xl text-center border text-xs font-semibold transition-all ${
+                      className={`p-2.5 rounded-xl text-left border transition-all ${
                         settings.filter === flt.id
-                          ? 'border-rose-500 bg-rose-950/20 text-white'
+                          ? 'border-rose-500 bg-rose-950/30 text-white'
                           : 'border-[#262833] bg-[#1a1b22] text-zinc-400 hover:text-white'
                       }`}
                     >
-                      {flt.label}
+                      <span className="text-xs font-bold block">{flt.label}</span>
+                      <span className="text-[10px] text-zinc-400 block">{flt.desc}</span>
                     </button>
                   ))}
                 </div>
@@ -1225,7 +1341,7 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
               </div>
               <button
                 onClick={onOpenCocoaModal}
-                className="px-3 py-1.5 text-xs font-semibold text-white bg-amber-600 hover:bg-amber-500 rounded-lg transition-colors shadow-xs"
+                className="px-3 py-1.5 text-xs font-semibold text-white bg-amber-600 hover:bg-amber-500 rounded-lg transition-colors shadow-xs shrink-0"
               >
                 เลี้ยงโกโก้
               </button>
