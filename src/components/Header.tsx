@@ -1,26 +1,32 @@
 import React from 'react';
-import { Camera, Sparkles, Image, Palette, RotateCcw } from 'lucide-react';
+import { Camera, Sparkles, Image, Palette, RotateCcw, Heart, Coffee, HelpCircle } from 'lucide-react';
 
 interface HeaderProps {
   currentTab: 'camera' | 'studio' | 'gallery';
   onSelectTab: (tab: 'camera' | 'studio' | 'gallery') => void;
   onOpenPresets: () => void;
+  onOpenCocoaTip: () => void;
+  onOpenExportHelp: () => void;
   onResetSession: () => void;
   photosCount: number;
   savedStripsCount: number;
+  totalCocoaCups: number;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   currentTab,
   onSelectTab,
   onOpenPresets,
+  onOpenCocoaTip,
+  onOpenExportHelp,
   onResetSession,
   photosCount,
-  savedStripsCount
+  savedStripsCount,
+  totalCocoaCups
 }) => {
   return (
     <header className="sticky top-0 z-40 bg-[#0c0d10]/90 backdrop-blur-md border-b border-[#22242c] px-4 md:px-8 py-3.5">
-      <div className="max-w-7xl mx-auto flex items-center justify-between gap-4 md:gap-8">
+      <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 md:gap-8">
         
         {/* Zone 1: Single text element wordmark */}
         <button
@@ -98,8 +104,32 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         </nav>
 
-        {/* Zone 3: Primary Action */}
+        {/* Zone 3: Primary Action & Tip Cocoa */}
         <div className="flex items-center gap-2 shrink-0">
+          
+          {/* Cocoa Tip Button */}
+          <button
+            onClick={onOpenCocoaTip}
+            className="px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-gradient-to-r from-amber-600/30 to-amber-500/20 hover:from-amber-600/40 hover:to-amber-500/30 border border-amber-500/40 text-amber-200 text-xs sm:text-sm font-semibold transition-all flex items-center gap-1.5 group shadow-xs"
+            title="เลี้ยงค่าน้ำโกโก้ให้คนสร้าง SnapBooth"
+          >
+            <span className="text-base group-hover:scale-125 transition-transform">☕</span>
+            <span className="hidden sm:inline">เลี้ยงโกโก้</span>
+            <span className="px-1.5 py-0.2 text-[10px] bg-amber-500/30 text-amber-300 font-mono rounded-full font-bold">
+              {totalCocoaCups} แก้ว
+            </span>
+          </button>
+
+          {/* GitHub Export Help Button */}
+          <button
+            onClick={onOpenExportHelp}
+            className="hidden lg:flex p-2 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900 rounded-lg transition-colors"
+            title="วิธีเชื่อมต่อและกด Export ไปยัง GitHub"
+          >
+            <HelpCircle className="w-4 h-4" />
+          </button>
+
+          {/* Reset session button */}
           <button
             onClick={onResetSession}
             className="p-2 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900 rounded-lg transition-colors"
@@ -108,6 +138,7 @@ export const Header: React.FC<HeaderProps> = ({
             <RotateCcw className="w-4 h-4" />
           </button>
 
+          {/* Primary CTA */}
           <button
             onClick={() => {
               if (currentTab === 'camera') {

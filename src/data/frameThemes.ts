@@ -35,7 +35,7 @@ export const FRAME_THEMES: FrameTheme[] = [
     textHex: '#881337',
     subtextHex: '#BE123C',
     borderHex: '#FFE4E6',
-    isSpecialPattern: 'none'
+    isSpecialPattern: 'hearts'
   },
   {
     id: 'seoul-lavender',
@@ -53,7 +53,7 @@ export const FRAME_THEMES: FrameTheme[] = [
     textHex: '#14532D',
     subtextHex: '#15803D',
     borderHex: '#DCFCE7',
-    isSpecialPattern: 'none'
+    isSpecialPattern: 'grid'
   },
   {
     id: 'powder-blue',
@@ -90,5 +90,23 @@ export const FRAME_THEMES: FrameTheme[] = [
     subtextHex: '#86198F',
     borderHex: '#FDE68A',
     isSpecialPattern: 'gradient-sunset'
+  },
+  {
+    id: 'holographic',
+    name: 'Holographic Silver',
+    bgHex: '#F3F4F6',
+    textHex: '#1E1B4B',
+    subtextHex: '#4338CA',
+    borderHex: '#C7D2FE',
+    isSpecialPattern: 'hologram'
+  },
+  {
+    id: 'newspaper',
+    name: 'Retro Broadsheet',
+    bgHex: '#FAF7F0',
+    textHex: '#1C1917',
+    subtextHex: '#57534E',
+    borderHex: '#D6D3D1',
+    isSpecialPattern: 'newspaper'
   }
 ];

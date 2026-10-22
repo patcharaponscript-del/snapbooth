@@ -19,6 +19,8 @@ export interface CapturedPhoto {
   id: string;
   dataUrl: string;
   timestamp: number;
+  rotation?: number; // 0, 90, 180, 270
+  flipped?: boolean;
 }
 
 export interface PlacedSticker {
@@ -32,6 +34,13 @@ export interface PlacedSticker {
   rotation: number; // -180 to 180 degrees
 }
 
+export interface DoodleStroke {
+  id: string;
+  points: { x: number; y: number }[]; // percentage coordinates 0-100
+  color: string;
+  size: number;
+}
+
 export interface FrameTheme {
   id: string;
   name: string;
@@ -40,7 +49,7 @@ export interface FrameTheme {
   subtextHex: string;
   borderHex?: string;
   badgeStyle?: string;
-  isSpecialPattern?: 'sprockets' | 'checker' | 'gradient-sunset' | 'none';
+  isSpecialPattern?: 'sprockets' | 'checker' | 'gradient-sunset' | 'hearts' | 'newspaper' | 'hologram' | 'grid' | 'none';
 }
 
 export interface StripSettings {
@@ -53,6 +62,7 @@ export interface StripSettings {
   dateFormat: 'korean' | 'standard' | 'minimal' | 'vintage';
   fontFamily: 'sans' | 'serif' | 'mono';
   stickers: PlacedSticker[];
+  doodles: DoodleStroke[];
   grainIntensity: number; // 0 to 100
   brightness: number; // 80 to 120
   contrast: number; // 80 to 130
@@ -67,4 +77,13 @@ export interface SavedStrip {
   frameName: string;
   photoCount: number;
   title: string;
+}
+
+export interface CocoaDonation {
+  id: string;
+  name: string;
+  amount: number; // in THB
+  cups: number;   // calculated as Math.round(amount / 50)
+  message: string;
+  timestamp: number;
 }

@@ -6,8 +6,6 @@ import {
   BookmarkCheck, 
   RotateCw, 
   Trash2, 
-  MoveUp, 
-  MoveDown, 
   Sparkles, 
   Sliders, 
   Type, 
@@ -16,13 +14,20 @@ import {
   ArrowLeft,
   Check,
   ZoomIn,
-  ZoomOut
+  ZoomOut,
+  PenTool,
+  Undo,
+  Play,
+  Square,
+  FlipHorizontal,
+  Coffee
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { 
   CapturedPhoto, 
   StripSettings, 
   PlacedSticker, 
+  DoodleStroke, 
   FilterType, 
   LayoutType, 
   SavedStrip 
@@ -42,16 +47,28 @@ interface StudioEditorProps {
   onChangeSettings: (settings: StripSettings) => void;
   onSaveToGallery: (strip: SavedStrip) => void;
   onBackToCamera: () => void;
+  onOpenCocoaModal?: () => void;
 }
+
+const DOODLE_COLORS = [
+  { name: 'White', hex: '#FFFFFF' },
+  { name: 'Neon Pink', hex: '#F43F5E' },
+  { name: 'Sunflower', hex: '#FACC15' },
+  { name: 'Matcha', hex: '#22C55E' },
+  { name: 'Sky Cyan', hex: '#38BDF8' },
+  { name: 'Lavender', hex: '#C084FC' },
+  { name: 'Charcoal', hex: '#18181B' }
+];
 
 export const StudioEditor: React.FC<StudioEditorProps> = ({
   photos,
   settings,
   onChangeSettings,
   onSaveToGallery,
-  onBackToCamera
+  onBackToCamera,
+  onOpenCocoaModal
 }) => {
-  const [activeTab, setActiveTab] = useState<'frames' | 'stickers' | 'text' | 'filters' | 'photos'>('frames');
+  const [activeTab, setActiveTab] = useState<'frames' | 'stickers' | 'doodle' | 'text' | 'filters' | 'photos'>('frames');
   const [selectedStickerId, setSelectedStickerId] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
@@ -59,15 +76,33 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
   const [stickerCategory, setStickerCategory] = useState<string>('all');
   const [zoomLevel, setZoomLevel] = useState<number>(1);
 
+  // Doodle pen states
+  const [isDoodleMode, setIsDoodleMode] = useState<boolean>(false);
+  const [doodleColor, setDoodleColor] = useState<string>('#FFFFFF');
+  const [doodleSize, setDoodleSize] = useState<number>(4);
+  const [currentStroke, setCurrentStroke] = useState<{ x: number; y: number }[] | null>(null);
+
+  // Boomerang GIF playback state
+  const [isBoomerangPlaying, setIsBoomerangPlaying] = useState<boolean>(false);
+  const [activeBoomerangIndex, setActiveBoomerangIndex] = useState<number>(0);
+
   const stripContainerRef = useRef<HTMLDivElement | null>(null);
   const draggingStickerRef = useRef<{ id: string; startX: number; startY: number } | null>(null);
 
   const currentFrame = FRAME_THEMES.find((f) => f.id === settings.frameThemeId) || FRAME_THEMES[0];
 
-  // Helper to update settings
   const updateSettings = (partial: Partial<StripSettings>) => {
     onChangeSettings({ ...settings, ...partial });
   };
+
+  // Boomerang effect loop
+  useEffect(() => {
+    if (!isBoomerangPlaying || photos.length === 0) return;
+    const interval = setInterval(() => {
+      setActiveBoomerangIndex((prev) => (prev + 1) % photos.length);
+    }, 380);
+    return () => clearInterval(interval);
+  }, [isBoomerangPlaying, photos.length]);
 
   // Add a sticker to center of strip
   const handleAddSticker = (def: StickerDefinition) => {
@@ -77,7 +112,7 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
       stickerId: def.id,
       symbol: def.symbol,
       type: def.type,
-      x: 50 + (Math.random() * 20 - 10), // slight jitter around center
+      x: 50 + (Math.random() * 20 - 10),
       y: 40 + (Math.random() * 20 - 10),
       scale: 1,
       rotation: Math.round(Math.random() * 20 - 10)
@@ -105,8 +140,9 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
     });
   };
 
-  // Dragging stickers within the strip container
+  // Sticker dragging
   const handleStickerPointerDown = (e: React.PointerEvent, id: string) => {
+    if (isDoodleMode) return;
     e.stopPropagation();
     setSelectedStickerId(id);
     draggingStickerRef.current = {
@@ -116,13 +152,29 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
     };
   };
 
+  // Doodle drawing handlers on strip container
+  const handleContainerPointerDown = (e: React.PointerEvent) => {
+    if (!isDoodleMode || !stripContainerRef.current) return;
+    const rect = stripContainerRef.current.getBoundingClientRect();
+    const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+    const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
+    setCurrentStroke([{ x, y }]);
+  };
+
   const handleContainerPointerMove = (e: React.PointerEvent) => {
+    if (isDoodleMode && currentStroke && stripContainerRef.current) {
+      const rect = stripContainerRef.current.getBoundingClientRect();
+      const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+      const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
+      setCurrentStroke((prev) => (prev ? [...prev, { x, y }] : [{ x, y }]));
+      return;
+    }
+
     if (!draggingStickerRef.current || !stripContainerRef.current) return;
     const rect = stripContainerRef.current.getBoundingClientRect();
     const sticker = settings.stickers.find((s) => s.id === draggingStickerRef.current?.id);
     if (!sticker) return;
 
-    // Calculate percentage relative to container
     const newX = Math.max(5, Math.min(95, ((e.clientX - rect.left) / rect.width) * 100));
     const newY = Math.max(5, Math.min(95, ((e.clientY - rect.top) / rect.height) * 100));
 
@@ -130,18 +182,33 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
   };
 
   const handleContainerPointerUp = () => {
+    if (isDoodleMode && currentStroke && currentStroke.length > 1) {
+      const newDoodle: DoodleStroke = {
+        id: `doodle_${Date.now()}`,
+        points: currentStroke,
+        color: doodleColor,
+        size: doodleSize
+      };
+      updateSettings({
+        doodles: [...(settings.doodles || []), newDoodle]
+      });
+      setCurrentStroke(null);
+    } else {
+      setCurrentStroke(null);
+    }
     draggingStickerRef.current = null;
   };
 
-  // Move photo up/down
-  const handleMovePhoto = (index: number, direction: 'up' | 'down') => {
-    const newPhotos = [...photos];
-    const targetIdx = direction === 'up' ? index - 1 : index + 1;
-    if (targetIdx < 0 || targetIdx >= newPhotos.length) return;
-    const temp = newPhotos[index];
-    newPhotos[index] = newPhotos[targetIdx];
-    newPhotos[targetIdx] = temp;
-    // We update through parent's photo list if required
+  const handleUndoDoodle = () => {
+    const list = settings.doodles || [];
+    if (list.length === 0) return;
+    updateSettings({
+      doodles: list.slice(0, list.length - 1)
+    });
+  };
+
+  const handleClearDoodles = () => {
+    updateSettings({ doodles: [] });
   };
 
   // Export & Download High-Res Canvas
@@ -156,7 +223,6 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
       link.href = dataUrl;
       link.click();
 
-      // Confetti celebration
       confetti({
         particleCount: 80,
         spread: 60,
@@ -183,7 +249,6 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
           setCopySuccess(true);
           setTimeout(() => setCopySuccess(false), 2500);
         } catch {
-          // Fallback if write not supported in iframe
           setCopySuccess(true);
           setTimeout(() => setCopySuccess(false), 2500);
         }
@@ -195,7 +260,7 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
     }
   };
 
-  // Save to Local Gallery
+  // Save to Gallery
   const handleSaveStrip = async () => {
     try {
       setIsExporting(true);
@@ -230,7 +295,6 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
     }
   };
 
-  // Print Strip
   const handlePrint = async () => {
     window.print();
   };
@@ -260,22 +324,43 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
             <ArrowLeft className="w-4 h-4" />
           </button>
           <div>
-            <h1 className="text-xl md:text-2xl font-bold font-serif text-white tracking-tight">
-              Darkroom Studio
+            <h1 className="text-xl md:text-2xl font-bold font-serif text-white tracking-tight flex items-center gap-2">
+              <span>Darkroom Studio</span>
+              <span className="text-[11px] font-sans font-medium text-rose-400 bg-rose-500/15 border border-rose-500/30 px-2 py-0.5 rounded-full">
+                Customizer
+              </span>
             </h1>
             <p className="text-xs text-zinc-400">
-              Style your frame, add stickers, adjust vintage tones, and download.
+              Style your frame, doodle on photos, place stickers, and export high-res prints.
             </p>
           </div>
         </div>
 
         {/* Action Controls Bar */}
         <div className="flex flex-wrap items-center gap-2">
+          
+          {/* Boomerang Animated Preview Toggle */}
+          <button
+            onClick={() => {
+              setIsBoomerangPlaying(!isBoomerangPlaying);
+              if (!isBoomerangPlaying) soundFX.playPop();
+            }}
+            className={`px-3 py-2 text-xs font-semibold rounded-xl border transition-all flex items-center gap-1.5 ${
+              isBoomerangPlaying
+                ? 'bg-rose-600 text-white border-rose-500 animate-pulse shadow-md shadow-rose-900/40'
+                : 'text-zinc-300 hover:text-white bg-[#181920] hover:bg-[#242630] border-[#2a2c36]'
+            }`}
+            title="Play looping motion preview of your photos"
+          >
+            {isBoomerangPlaying ? <Square className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 text-rose-400" />}
+            <span>{isBoomerangPlaying ? 'Stop Motion' : 'Boomerang GIF'}</span>
+          </button>
+
           {/* Copy */}
           <button
             onClick={handleCopyToClipboard}
             disabled={isExporting}
-            className="px-3.5 py-2 text-xs font-semibold text-zinc-300 hover:text-white bg-[#181920] hover:bg-[#242630] border border-[#2a2c36] rounded-xl transition-colors flex items-center gap-1.5"
+            className="px-3 py-2 text-xs font-semibold text-zinc-300 hover:text-white bg-[#181920] hover:bg-[#242630] border border-[#2a2c36] rounded-xl transition-colors flex items-center gap-1.5"
             title="Copy high-res image to clipboard"
           >
             {copySuccess ? (
@@ -295,7 +380,7 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
           <button
             onClick={handleSaveStrip}
             disabled={isExporting}
-            className="px-3.5 py-2 text-xs font-semibold text-zinc-300 hover:text-white bg-[#181920] hover:bg-[#242630] border border-[#2a2c36] rounded-xl transition-colors flex items-center gap-1.5"
+            className="px-3 py-2 text-xs font-semibold text-zinc-300 hover:text-white bg-[#181920] hover:bg-[#242630] border border-[#2a2c36] rounded-xl transition-colors flex items-center gap-1.5"
             title="Save into your in-app booth gallery"
           >
             {saveSuccess ? (
@@ -306,7 +391,7 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
             ) : (
               <>
                 <BookmarkCheck className="w-3.5 h-3.5 text-rose-400" />
-                <span>Save Strip</span>
+                <span>Save</span>
               </>
             )}
           </button>
@@ -314,7 +399,7 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
           {/* Print */}
           <button
             onClick={handlePrint}
-            className="px-3.5 py-2 text-xs font-semibold text-zinc-300 hover:text-white bg-[#181920] hover:bg-[#242630] border border-[#2a2c36] rounded-xl transition-colors flex items-center gap-1.5"
+            className="px-3 py-2 text-xs font-semibold text-zinc-300 hover:text-white bg-[#181920] hover:bg-[#242630] border border-[#2a2c36] rounded-xl transition-colors flex items-center gap-1.5"
             title="Print photo strip"
           >
             <Printer className="w-3.5 h-3.5" />
@@ -338,27 +423,36 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
         {/* Left / Center: Interactive Strip Preview Stage (7 cols) */}
-        <div className="lg:col-span-7 bg-[#121318] border border-[#262833] rounded-2xl p-6 flex flex-col items-center justify-center min-h-[620px] relative overflow-hidden">
+        <div className="lg:col-span-7 bg-[#121318] border border-[#262833] rounded-2xl p-6 flex flex-col items-center justify-center min-h-[640px] relative overflow-hidden">
           
-          {/* Zoom controls */}
-          <div className="absolute top-4 right-4 flex items-center gap-1 bg-black/60 backdrop-blur-md border border-white/10 rounded-lg p-1 z-20">
-            <button
-              onClick={() => setZoomLevel((z) => Math.max(0.7, z - 0.1))}
-              className="p-1 text-zinc-400 hover:text-white rounded"
-              title="Zoom Out"
-            >
-              <ZoomOut className="w-3.5 h-3.5" />
-            </button>
-            <span className="text-[10px] font-mono text-zinc-300 px-1">
-              {Math.round(zoomLevel * 100)}%
-            </span>
-            <button
-              onClick={() => setZoomLevel((z) => Math.min(1.3, z + 0.1))}
-              className="p-1 text-zinc-400 hover:text-white rounded"
-              title="Zoom In"
-            >
-              <ZoomIn className="w-3.5 h-3.5" />
-            </button>
+          {/* Zoom controls & Doodle Mode status */}
+          <div className="absolute top-4 right-4 flex items-center gap-2 z-20">
+            {isDoodleMode && (
+              <span className="px-2.5 py-1 bg-amber-500/20 text-amber-300 text-[11px] font-semibold rounded-md border border-amber-500/30 flex items-center gap-1">
+                <PenTool className="w-3 h-3" />
+                <span>Doodle Pen Active</span>
+              </span>
+            )}
+
+            <div className="flex items-center gap-1 bg-black/60 backdrop-blur-md border border-white/10 rounded-lg p-1">
+              <button
+                onClick={() => setZoomLevel((z) => Math.max(0.7, z - 0.1))}
+                className="p-1 text-zinc-400 hover:text-white rounded"
+                title="Zoom Out"
+              >
+                <ZoomOut className="w-3.5 h-3.5" />
+              </button>
+              <span className="text-[10px] font-mono text-zinc-300 px-1">
+                {Math.round(zoomLevel * 100)}%
+              </span>
+              <button
+                onClick={() => setZoomLevel((z) => Math.min(1.3, z + 0.1))}
+                className="p-1 text-zinc-400 hover:text-white rounded"
+                title="Zoom In"
+              >
+                <ZoomIn className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
 
           {/* Interactive Strip Container */}
@@ -368,16 +462,22 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
           >
             <div
               ref={stripContainerRef}
-              onClick={() => setSelectedStickerId(null)}
+              onPointerDown={handleContainerPointerDown}
+              onClick={() => {
+                if (!isDoodleMode) setSelectedStickerId(null);
+              }}
               style={{
                 backgroundColor: currentFrame.isSpecialPattern === 'gradient-sunset' ? undefined : currentFrame.bgHex,
                 backgroundImage: currentFrame.isSpecialPattern === 'gradient-sunset' 
                   ? 'linear-gradient(135deg, #FDE68A 0%, #F472B6 50%, #C084FC 100%)' 
-                  : undefined,
+                  : currentFrame.isSpecialPattern === 'hologram'
+                    ? 'linear-gradient(135deg, #E0E7FF 0%, #FCE7F3 30%, #CFFAFE 70%, #EDE9FE 100%)'
+                    : undefined,
                 color: currentFrame.textHex,
                 borderColor: currentFrame.borderHex || '#e4e4e7',
                 width: settings.layout === '2x2-quad' ? '380px' : settings.layout === 'polaroid' ? '320px' : '280px',
-                minHeight: settings.layout === 'polaroid' ? '410px' : '620px'
+                minHeight: settings.layout === 'polaroid' ? '410px' : '620px',
+                cursor: isDoodleMode ? 'crosshair' : 'default'
               }}
               className={`relative rounded-xl p-4 shadow-2xl transition-all duration-200 border select-none ${
                 currentFrame.isSpecialPattern === 'sprockets' ? 'px-8' : ''
@@ -400,36 +500,72 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
                 </>
               )}
 
-              {/* Photos Grid Container */}
-              <div className={`gap-3 ${
-                settings.layout === '2x2-quad' 
-                  ? 'grid grid-cols-2' 
-                  : 'flex flex-col'
-              }`}>
-                {photos.slice(0, settings.layout === '4-cut-strip' || settings.layout === '2x2-quad' ? 4 : settings.layout === '3-cut-strip' ? 3 : settings.layout === 'duo-wide' ? 2 : 1).map((photo, idx) => (
-                  <div
-                    key={photo.id || idx}
-                    className="relative aspect-[4/3] rounded-md overflow-hidden bg-black/80 shadow-xs border border-black/10"
-                  >
-                    <img
-                      src={photo.dataUrl}
-                      alt={`Snap ${idx + 1}`}
-                      style={{
-                        filter: getFilterCssString(settings.filter, settings.brightness, settings.contrast)
-                      }}
-                      className="w-full h-full object-cover pointer-events-none"
-                    />
+              {/* Special Hearts pattern */}
+              {currentFrame.isSpecialPattern === 'hearts' && (
+                <div className="absolute top-1 left-4 right-4 flex justify-between text-xs text-rose-500 pointer-events-none">
+                  <span>♡</span><span>♡</span><span>♡</span><span>♡</span><span>♡</span>
+                </div>
+              )}
 
-                    {/* Film Grain overlay */}
-                    {settings.grainIntensity > 0 && (
-                      <div 
-                        style={{ opacity: (settings.grainIntensity || 30) / 100 }}
-                        className="absolute inset-0 film-grain pointer-events-none"
-                      />
-                    )}
+              {/* Special Grid Pattern */}
+              {currentFrame.isSpecialPattern === 'grid' && (
+                <div 
+                  style={{
+                    backgroundImage: 'linear-gradient(to right, rgba(20,83,45,0.08) 1px, transparent 1px), linear-gradient(to bottom, rgba(20,83,45,0.08) 1px, transparent 1px)',
+                    backgroundSize: '16px 16px'
+                  }}
+                  className="absolute inset-0 rounded-xl pointer-events-none"
+                />
+              )}
+
+              {/* Boomerang Single Full Preview Mode */}
+              {isBoomerangPlaying ? (
+                <div className="relative aspect-[4/3] rounded-md overflow-hidden bg-black shadow-lg border border-black/20 my-4">
+                  <img
+                    src={photos[activeBoomerangIndex]?.dataUrl || photos[0]?.dataUrl}
+                    alt="Boomerang Frame"
+                    style={{
+                      filter: getFilterCssString(settings.filter, settings.brightness, settings.contrast)
+                    }}
+                    className="w-full h-full object-cover pointer-events-none"
+                  />
+                  <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded bg-rose-600 text-white text-[10px] font-mono font-bold animate-pulse">
+                    POSE #{activeBoomerangIndex + 1}
                   </div>
-                ))}
-              </div>
+                </div>
+              ) : (
+                /* Standard Photobooth Photos Grid Container */
+                <div className={`gap-3 ${
+                  settings.layout === '2x2-quad' 
+                    ? 'grid grid-cols-2' 
+                    : 'flex flex-col'
+                }`}>
+                  {photos.slice(0, settings.layout === '4-cut-strip' || settings.layout === '2x2-quad' ? 4 : settings.layout === '3-cut-strip' ? 3 : settings.layout === 'duo-wide' ? 2 : 1).map((photo, idx) => (
+                    <div
+                      key={photo.id || idx}
+                      className="relative aspect-[4/3] rounded-md overflow-hidden bg-black/80 shadow-xs border border-black/10 group"
+                    >
+                      <img
+                        src={photo.dataUrl}
+                        alt={`Snap ${idx + 1}`}
+                        style={{
+                          filter: getFilterCssString(settings.filter, settings.brightness, settings.contrast),
+                          transform: photo.flipped ? 'scaleX(-1)' : undefined
+                        }}
+                        className="w-full h-full object-cover pointer-events-none"
+                      />
+
+                      {/* Film Grain overlay */}
+                      {settings.grainIntensity > 0 && (
+                        <div 
+                          style={{ opacity: (settings.grainIntensity || 30) / 100 }}
+                          className="absolute inset-0 film-grain pointer-events-none"
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {/* Strip Footer / Branding Typography */}
               <div className="mt-4 pt-2 text-center">
@@ -463,6 +599,41 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
                 )}
               </div>
 
+              {/* Render Doodles SVG Layer */}
+              <svg className="absolute inset-0 w-full h-full pointer-events-none z-20">
+                {(settings.doodles || []).map((stroke) => {
+                  if (!stroke.points || stroke.points.length < 2) return null;
+                  const pathData = stroke.points.reduce((acc, pt, i) => {
+                    return i === 0 ? `M ${pt.x}% ${pt.y}%` : `${acc} L ${pt.x}% ${pt.y}%`;
+                  }, '');
+                  return (
+                    <path
+                      key={stroke.id}
+                      d={pathData}
+                      fill="none"
+                      stroke={stroke.color}
+                      strokeWidth={stroke.size}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  );
+                })}
+
+                {/* Live Current Drawing Stroke */}
+                {currentStroke && currentStroke.length > 1 && (
+                  <path
+                    d={currentStroke.reduce((acc, pt, i) => {
+                      return i === 0 ? `M ${pt.x}% ${pt.y}%` : `${acc} L ${pt.x}% ${pt.y}%`;
+                    }, '')}
+                    fill="none"
+                    stroke={doodleColor}
+                    strokeWidth={doodleSize}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                )}
+              </svg>
+
               {/* Placed Interactive Stickers */}
               {settings.stickers.map((stk) => {
                 const isSelected = selectedStickerId === stk.id;
@@ -489,7 +660,6 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
                       </span>
                     )}
 
-                    {/* Small delete icon when selected */}
                     {isSelected && (
                       <button
                         onClick={(e) => {
@@ -510,7 +680,9 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
           </div>
 
           <div className="text-[11px] text-zinc-500 mt-4 text-center">
-            Click sticker to drag, scale or rotate. Click outside to deselect.
+            {isDoodleMode 
+              ? 'Draw freely on photos with pen. Click "Doodle" tab to change colors or undo.' 
+              : 'Click sticker to drag, scale or rotate. Click "Boomerang" to see moving photos.'}
           </div>
         </div>
 
@@ -518,10 +690,13 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
         <div className="lg:col-span-5 bg-[#14151b] border border-[#262833] rounded-2xl p-5 flex flex-col gap-5">
           
           {/* Studio Control Tabs */}
-          <div className="grid grid-cols-4 gap-1 p-1 bg-[#1b1c24] rounded-xl border border-[#2b2d3a]">
+          <div className="grid grid-cols-5 gap-1 p-1 bg-[#1b1c24] rounded-xl border border-[#2b2d3a]">
             <button
-              onClick={() => setActiveTab('frames')}
-              className={`py-2 text-xs font-semibold rounded-lg transition-colors flex flex-col items-center gap-1 ${
+              onClick={() => {
+                setActiveTab('frames');
+                setIsDoodleMode(false);
+              }}
+              className={`py-2 text-[11px] font-semibold rounded-lg transition-colors flex flex-col items-center gap-1 ${
                 activeTab === 'frames'
                   ? 'bg-rose-600 text-white shadow-sm'
                   : 'text-zinc-400 hover:text-white'
@@ -532,8 +707,11 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
             </button>
 
             <button
-              onClick={() => setActiveTab('stickers')}
-              className={`py-2 text-xs font-semibold rounded-lg transition-colors flex flex-col items-center gap-1 ${
+              onClick={() => {
+                setActiveTab('stickers');
+                setIsDoodleMode(false);
+              }}
+              className={`py-2 text-[11px] font-semibold rounded-lg transition-colors flex flex-col items-center gap-1 ${
                 activeTab === 'stickers'
                   ? 'bg-rose-600 text-white shadow-sm'
                   : 'text-zinc-400 hover:text-white'
@@ -544,8 +722,26 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
             </button>
 
             <button
-              onClick={() => setActiveTab('text')}
-              className={`py-2 text-xs font-semibold rounded-lg transition-colors flex flex-col items-center gap-1 ${
+              onClick={() => {
+                setActiveTab('doodle');
+                setIsDoodleMode(true);
+              }}
+              className={`py-2 text-[11px] font-semibold rounded-lg transition-colors flex flex-col items-center gap-1 ${
+                activeTab === 'doodle'
+                  ? 'bg-rose-600 text-white shadow-sm'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              <PenTool className="w-3.5 h-3.5" />
+              <span>Doodle</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setActiveTab('text');
+                setIsDoodleMode(false);
+              }}
+              className={`py-2 text-[11px] font-semibold rounded-lg transition-colors flex flex-col items-center gap-1 ${
                 activeTab === 'text'
                   ? 'bg-rose-600 text-white shadow-sm'
                   : 'text-zinc-400 hover:text-white'
@@ -556,8 +752,11 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
             </button>
 
             <button
-              onClick={() => setActiveTab('filters')}
-              className={`py-2 text-xs font-semibold rounded-lg transition-colors flex flex-col items-center gap-1 ${
+              onClick={() => {
+                setActiveTab('filters');
+                setIsDoodleMode(false);
+              }}
+              className={`py-2 text-[11px] font-semibold rounded-lg transition-colors flex flex-col items-center gap-1 ${
                 activeTab === 'filters'
                   ? 'bg-rose-600 text-white shadow-sm'
                   : 'text-zinc-400 hover:text-white'
@@ -620,7 +819,9 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
                             backgroundColor: theme.isSpecialPattern === 'gradient-sunset' ? undefined : theme.bgHex,
                             backgroundImage: theme.isSpecialPattern === 'gradient-sunset' 
                               ? 'linear-gradient(135deg, #FDE68A 0%, #F472B6 50%, #C084FC 100%)' 
-                              : undefined,
+                              : theme.isSpecialPattern === 'hologram'
+                                ? 'linear-gradient(135deg, #E0E7FF 0%, #FCE7F3 30%, #CFFAFE 70%, #EDE9FE 100%)'
+                                : undefined,
                             borderColor: theme.borderHex || '#555'
                           }}
                           className="w-6 h-6 rounded-md border shrink-0 shadow-xs"
@@ -644,8 +845,6 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
           {/* TAB 2: Stickers */}
           {activeTab === 'stickers' && (
             <div className="space-y-4">
-              
-              {/* Sticker Categories */}
               <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
                 {['all', 'cute', 'props', 'vibes', 'stamps'].map((cat) => (
                   <button
@@ -662,7 +861,6 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
                 ))}
               </div>
 
-              {/* Selected Sticker Fine-tune Controls */}
               {selectedSticker && (
                 <div className="p-3 bg-[#1e202b] rounded-xl border border-rose-500/40 space-y-2.5">
                   <div className="flex items-center justify-between">
@@ -679,7 +877,6 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
                     </button>
                   </div>
 
-                  {/* Scale */}
                   <div>
                     <div className="flex justify-between text-[11px] text-zinc-400 mb-1">
                       <span>Size</span>
@@ -696,7 +893,6 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
                     />
                   </div>
 
-                  {/* Rotation */}
                   <div>
                     <div className="flex justify-between text-[11px] text-zinc-400 mb-1">
                       <span>Rotation</span>
@@ -715,7 +911,6 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
                 </div>
               )}
 
-              {/* Sticker Catalog Grid */}
               <div className="grid grid-cols-4 gap-2 max-h-[280px] overflow-y-auto pr-1">
                 {filteredStickers.map((stk) => (
                   <button
@@ -750,11 +945,94 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
                   </button>
                 </div>
               )}
-
             </div>
           )}
 
-          {/* TAB 3: Text & Typography */}
+          {/* TAB 3: Freehand Doodle Pen */}
+          {activeTab === 'doodle' && (
+            <div className="space-y-4">
+              <div className="p-3 bg-[#191b24] border border-[#2c2e3d] rounded-xl flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-bold text-white block">
+                    โหมดปากกาวาดเขียน (Freehand Pen)
+                  </span>
+                  <span className="text-[11px] text-zinc-400">
+                    วาดลวดลาย หัวใจ หรือเขียนข้อความลงบนภาพได้อิสระ
+                  </span>
+                </div>
+                <button
+                  onClick={() => setIsDoodleMode(!isDoodleMode)}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+                    isDoodleMode 
+                      ? 'bg-rose-600 text-white' 
+                      : 'bg-zinc-800 text-zinc-300'
+                  }`}
+                >
+                  {isDoodleMode ? 'กำลังวาด' : 'เปิดปากกา'}
+                </button>
+              </div>
+
+              {/* Color Palette */}
+              <div>
+                <label className="text-xs font-semibold text-zinc-300 block mb-2">
+                  สีปากกา (Pen Color)
+                </label>
+                <div className="flex items-center gap-2">
+                  {DOODLE_COLORS.map((c) => (
+                    <button
+                      key={c.hex}
+                      onClick={() => setDoodleColor(c.hex)}
+                      style={{ backgroundColor: c.hex }}
+                      className={`w-7 h-7 rounded-full border-2 transition-transform ${
+                        doodleColor === c.hex 
+                          ? 'border-rose-500 scale-110 shadow-md ring-2 ring-white/20' 
+                          : 'border-zinc-700 hover:scale-105'
+                      }`}
+                      title={c.name}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Pen Thickness */}
+              <div>
+                <div className="flex justify-between text-xs text-zinc-400 mb-1">
+                  <span>ขนาดหัวปากกา (Stroke Size)</span>
+                  <span className="font-mono">{doodleSize}px</span>
+                </div>
+                <input
+                  type="range"
+                  min="2"
+                  max="12"
+                  value={doodleSize}
+                  onChange={(e) => setDoodleSize(parseInt(e.target.value))}
+                  className="w-full accent-rose-500"
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center justify-between pt-3 border-t border-[#262833]">
+                <button
+                  onClick={handleUndoDoodle}
+                  disabled={!settings.doodles || settings.doodles.length === 0}
+                  className="px-3 py-1.5 text-xs font-medium text-zinc-300 bg-[#1e202a] hover:bg-[#282a38] border border-[#2b2d3c] rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-40"
+                >
+                  <Undo className="w-3.5 h-3.5" />
+                  <span>ย้อนกลับ (Undo)</span>
+                </button>
+
+                <button
+                  onClick={handleClearDoodles}
+                  disabled={!settings.doodles || settings.doodles.length === 0}
+                  className="text-xs text-rose-400 hover:text-rose-300 disabled:opacity-40"
+                >
+                  ล้างลายเส้นทั้งหมด
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 4: Text & Typography */}
           {activeTab === 'text' && (
             <div className="space-y-4">
               <div>
@@ -810,7 +1088,6 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
                 </div>
               </div>
 
-              {/* Date format & toggle */}
               <div className="pt-2 border-t border-[#262833] space-y-2">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-semibold text-zinc-300">
@@ -850,7 +1127,7 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
             </div>
           )}
 
-          {/* TAB 4: Filters & Analog Tones */}
+          {/* TAB 5: Filters & Analog Tones */}
           {activeTab === 'filters' && (
             <div className="space-y-4">
               <div>
@@ -883,9 +1160,7 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
                 </div>
               </div>
 
-              {/* Sliders */}
               <div className="space-y-3 pt-2 border-t border-[#262833]">
-                {/* Brightness */}
                 <div>
                   <div className="flex justify-between text-xs text-zinc-400 mb-1">
                     <span>Brightness</span>
@@ -901,7 +1176,6 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
                   />
                 </div>
 
-                {/* Contrast */}
                 <div>
                   <div className="flex justify-between text-xs text-zinc-400 mb-1">
                     <span>Contrast</span>
@@ -917,7 +1191,6 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
                   />
                 </div>
 
-                {/* Film Grain */}
                 <div>
                   <div className="flex justify-between text-xs text-zinc-400 mb-1">
                     <span>35mm Film Grain</span>
@@ -933,6 +1206,29 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
                   />
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Quick Cocoa Tip Banner */}
+          {onOpenCocoaModal && (
+            <div className="mt-2 p-3 rounded-xl bg-gradient-to-r from-amber-950/40 to-[#181922] border border-amber-500/30 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">☕</span>
+                <div>
+                  <span className="text-xs font-bold text-amber-200 block">
+                    ชอบโฟโต้บูธนี้ไหม?
+                  </span>
+                  <span className="text-[10px] text-zinc-400">
+                    เลี้ยงค่าน้ำโกโก้คนสร้างสักแก้ว
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={onOpenCocoaModal}
+                className="px-3 py-1.5 text-xs font-semibold text-white bg-amber-600 hover:bg-amber-500 rounded-lg transition-colors shadow-xs"
+              >
+                เลี้ยงโกโก้
+              </button>
             </div>
           )}
 

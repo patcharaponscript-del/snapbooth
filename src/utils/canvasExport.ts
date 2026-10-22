@@ -70,7 +70,7 @@ export async function renderPhotostripToCanvas(
 
   // Canvas dimensions based on layout
   let width = 600;
-  let height = 1800;
+  let height = 1920;
 
   if (settings.layout === '4-cut-strip') {
     width = 600;
@@ -100,6 +100,14 @@ export async function renderPhotostripToCanvas(
     grad.addColorStop(1, '#C084FC');
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, width, height);
+  } else if (frame.isSpecialPattern === 'hologram') {
+    const grad = ctx.createLinearGradient(0, 0, width, height);
+    grad.addColorStop(0, '#E0E7FF');
+    grad.addColorStop(0.3, '#FCE7F3');
+    grad.addColorStop(0.7, '#CFFAFE');
+    grad.addColorStop(1, '#EDE9FE');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, width, height);
   } else {
     ctx.fillStyle = frame.bgHex;
     ctx.fillRect(0, 0, width, height);
@@ -112,11 +120,9 @@ export async function renderPhotostripToCanvas(
     const holeH = 26;
     const gap = 36;
     for (let y = 30; y < height - 40; y += gap) {
-      // Left sprocket
       ctx.beginPath();
       ctx.roundRect(14, y, holeW, holeH, 4);
       ctx.fill();
-      // Right sprocket
       ctx.beginPath();
       ctx.roundRect(width - 14 - holeW, y, holeW, holeH, 4);
       ctx.fill();
@@ -138,6 +144,34 @@ export async function renderPhotostripToCanvas(
           ctx.fillRect(x, y, checkSize, checkSize);
         }
       }
+    }
+  }
+
+  // Special pattern: Hearts
+  if (frame.isSpecialPattern === 'hearts') {
+    ctx.font = '14px sans-serif';
+    ctx.fillStyle = '#F43F5E';
+    for (let x = 20; x < width - 20; x += 35) {
+      ctx.fillText('♡', x, 22);
+      ctx.fillText('♡', x, height - 15);
+    }
+  }
+
+  // Special pattern: Grid
+  if (frame.isSpecialPattern === 'grid') {
+    ctx.strokeStyle = 'rgba(20, 83, 45, 0.08)';
+    ctx.lineWidth = 1;
+    for (let x = 0; x < width; x += 24) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, height);
+      ctx.stroke();
+    }
+    for (let y = 0; y < height; y += 24) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(width, y);
+      ctx.stroke();
     }
   }
 
@@ -164,23 +198,19 @@ export async function renderPhotostripToCanvas(
   if (settings.layout === '4-cut-strip' || settings.layout === '3-cut-strip') {
     const photoCount = settings.layout === '4-cut-strip' ? 4 : 3;
     const photoW = width - marginX * 2;
-    // 4:3 or 3:2 aspect ratio for each slot
     const photoH = settings.layout === '4-cut-strip' ? 380 : 420;
 
     for (let i = 0; i < photoCount; i++) {
       const img = loadedImages[i];
       const slotY = marginTop + i * (photoH + photoGap);
 
-      // Draw photo container background
       ctx.fillStyle = '#222';
       ctx.fillRect(marginX, slotY, photoW, photoH);
 
       if (img) {
-        // Draw image object-fit: cover
         drawObjectFitCover(ctx, img, marginX, slotY, photoW, photoH);
       }
 
-      // Draw subtle inner border for clean photo finish
       ctx.strokeStyle = 'rgba(0,0,0,0.12)';
       ctx.lineWidth = 1;
       ctx.strokeRect(marginX, slotY, photoW, photoH);
@@ -244,7 +274,7 @@ export async function renderPhotostripToCanvas(
     }
   }
 
-  // Restore filter context for text & stickers
+  // Restore filter context for text, stickers, doodles
   ctx.restore();
 
   // 3. Film Grain overlay if enabled
@@ -270,23 +300,19 @@ export async function renderPhotostripToCanvas(
   ctx.textAlign = 'center';
   ctx.fillStyle = frame.textHex;
 
-  // Bottom footer text
   const footerAreaY = height - 90;
 
-  // Title
   if (settings.title) {
     ctx.font = `bold 28px ${fontChoice}`;
     ctx.fillText(settings.title, width / 2, footerAreaY);
   }
 
-  // Subtitle / message
   if (settings.subtitle) {
     ctx.font = `500 16px ${fontChoice}`;
     ctx.fillStyle = frame.subtextHex;
     ctx.fillText(settings.subtitle, width / 2, footerAreaY + 30);
   }
 
-  // Date stamp
   if (settings.showDate) {
     const dateStr = formatPhotoboothDate(Date.now(), settings.dateFormat);
     ctx.font = `600 14px "Space Mono", monospace`;
@@ -294,7 +320,30 @@ export async function renderPhotostripToCanvas(
     ctx.fillText(dateStr, width / 2, footerAreaY + 54);
   }
 
-  // 5. Draw Stickers
+  // 5. Draw Doodles
+  if (settings.doodles && settings.doodles.length > 0) {
+    for (const stroke of settings.doodles) {
+      if (!stroke.points || stroke.points.length < 2) continue;
+      ctx.save();
+      ctx.beginPath();
+      ctx.strokeStyle = stroke.color;
+      ctx.lineWidth = (stroke.size / 100) * width * 0.04;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      const firstPt = stroke.points[0];
+      ctx.moveTo((firstPt.x / 100) * width, (firstPt.y / 100) * height);
+
+      for (let i = 1; i < stroke.points.length; i++) {
+        const pt = stroke.points[i];
+        ctx.lineTo((pt.x / 100) * width, (pt.y / 100) * height);
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  // 6. Draw Stickers
   for (const sticker of settings.stickers) {
     ctx.save();
     const posX = (sticker.x / 100) * width;
@@ -306,7 +355,6 @@ export async function renderPhotostripToCanvas(
     const baseSize = 44 * (sticker.scale || 1);
 
     if (sticker.type === 'badge') {
-      // Render text badge stamp
       ctx.font = `bold ${Math.round(18 * (sticker.scale || 1))}px "Space Mono", sans-serif`;
       const textMetrics = ctx.measureText(sticker.symbol);
       const padX = 14 * sticker.scale;
@@ -324,7 +372,6 @@ export async function renderPhotostripToCanvas(
       ctx.textBaseline = 'middle';
       ctx.fillText(sticker.symbol, 0, 1);
     } else {
-      // Render Emoji / Symbol
       ctx.font = `${Math.round(baseSize)}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
@@ -337,7 +384,6 @@ export async function renderPhotostripToCanvas(
   return canvas;
 }
 
-// Utility for object-fit: cover inside canvas
 function drawObjectFitCover(
   ctx: CanvasRenderingContext2D,
   img: HTMLImageElement,
@@ -352,11 +398,9 @@ function drawObjectFitCover(
   let sX = 0, sY = 0, sW = img.width, sH = img.height;
 
   if (imgRatio > targetRatio) {
-    // Image is wider than target
     sW = img.height * targetRatio;
     sX = (img.width - sW) / 2;
   } else {
-    // Image is taller than target
     sH = img.width / targetRatio;
     sY = (img.height - sH) / 2;
   }

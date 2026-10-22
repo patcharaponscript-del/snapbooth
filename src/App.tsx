@@ -4,10 +4,13 @@ import { CameraBooth } from './components/CameraBooth';
 import { StudioEditor } from './components/StudioEditor';
 import { GalleryView } from './components/GalleryView';
 import { ThemePresetsModal, ThemePreset } from './components/ThemePresetsModal';
+import { CocoaTipModal } from './components/CocoaTipModal';
+import { ExportHelpModal } from './components/ExportHelpModal';
 import { 
   CapturedPhoto, 
   StripSettings, 
   SavedStrip, 
+  CocoaDonation,
   FilterType, 
   LayoutType 
 } from './types/photobooth';
@@ -45,10 +48,46 @@ const DEFAULT_SETTINGS: StripSettings = {
       rotation: -8
     }
   ],
+  doodles: [],
   grainIntensity: 25,
   brightness: 100,
   contrast: 105
 };
+
+const INITIAL_DONATIONS: CocoaDonation[] = [
+  {
+    id: 'cocoa_1',
+    name: 'น้องมินนี่ 💖',
+    amount: 500,
+    cups: 10,
+    message: 'ชอบโทนสี 90s และกรอบ 35mm มากๆ เลยค่า เลี้ยงโกโก้ 10 แก้ว!',
+    timestamp: Date.now() - 3600000 * 5
+  },
+  {
+    id: 'cocoa_2',
+    name: 'P\'Tae Senior Dev 🚀',
+    amount: 350,
+    cups: 7,
+    message: 'แอปเขียนลื่นมาก UI สวยจัด เอาโกโก้เข้มๆ ดับเบิ้ลช็อตไปเลยน้อง',
+    timestamp: Date.now() - 3600000 * 14
+  },
+  {
+    id: 'cocoa_3',
+    name: 'แก๊งเด็กสยาม 📸',
+    amount: 250,
+    cups: 5,
+    message: 'ถ่ายรูป 4 ช่องปริ้นท์แจกเพื่อนทั้งห้อง ชอบสติกเกอร์โบว์มากก',
+    timestamp: Date.now() - 3600000 * 26
+  },
+  {
+    id: 'cocoa_4',
+    name: 'Anonymous Cocoa Fan 🧋',
+    amount: 150,
+    cups: 3,
+    message: 'ขอให้คนสร้างมีแรงเขียนฟีเจอร์ใหม่เยอะๆ ครับ',
+    timestamp: Date.now() - 3600000 * 48
+  }
+];
 
 export const App: React.FC = () => {
   const [currentTab, setCurrentTab] = useState<'camera' | 'studio' | 'gallery'>('camera');
@@ -64,6 +103,8 @@ export const App: React.FC = () => {
 
   const [settings, setSettings] = useState<StripSettings>(DEFAULT_SETTINGS);
   const [isPresetsOpen, setIsPresetsOpen] = useState(false);
+  const [isCocoaModalOpen, setIsCocoaModalOpen] = useState(false);
+  const [isExportHelpOpen, setIsExportHelpOpen] = useState(false);
 
   // Saved gallery strips in localStorage
   const [savedStrips, setSavedStrips] = useState<SavedStrip[]>(() => {
@@ -78,6 +119,19 @@ export const App: React.FC = () => {
     return [];
   });
 
+  // Cocoa Donations in localStorage
+  const [donations, setDonations] = useState<CocoaDonation[]>(() => {
+    try {
+      const stored = localStorage.getItem('snapbooth_cocoa_donations');
+      if (stored) {
+        return JSON.parse(stored);
+      }
+    } catch {
+      // ignore
+    }
+    return INITIAL_DONATIONS;
+  });
+
   // Pre-seed 1 initial showcase strip in gallery on very first visit
   useEffect(() => {
     if (savedStrips.length === 0 && photos.length > 0) {
@@ -85,7 +139,7 @@ export const App: React.FC = () => {
         const initialStrip: SavedStrip = {
           id: 'initial_demo_strip',
           dataUrl: canvas.toDataURL('image/jpeg', 0.92),
-          createdAt: Date.now() - 3600000 * 24, // 1 day ago
+          createdAt: Date.now() - 3600000 * 24,
           layout: '4-cut-strip',
           filter: 'vintage',
           frameName: 'Paper White',
@@ -102,7 +156,7 @@ export const App: React.FC = () => {
     }
   }, []);
 
-  // Save strips to localStorage whenever updated
+  // Save strips to localStorage
   useEffect(() => {
     try {
       localStorage.setItem('snapbooth_saved_strips', JSON.stringify(savedStrips));
@@ -110,6 +164,15 @@ export const App: React.FC = () => {
       // ignore
     }
   }, [savedStrips]);
+
+  // Save donations to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('snapbooth_cocoa_donations', JSON.stringify(donations));
+    } catch {
+      // ignore
+    }
+  }, [donations]);
 
   // Photo handlers
   const handleAddPhoto = (photo: CapturedPhoto) => {
@@ -160,6 +223,12 @@ export const App: React.FC = () => {
     }));
   };
 
+  const handleAddDonation = (newDonation: CocoaDonation) => {
+    setDonations((prev) => [newDonation, ...prev]);
+  };
+
+  const totalCocoaCups = Math.floor(donations.reduce((sum, d) => sum + d.amount, 0) / 50);
+
   return (
     <div className="min-h-screen bg-[#0c0d10] text-[#f3f4f6] flex flex-col selection:bg-rose-500 selection:text-white">
       
@@ -168,9 +237,12 @@ export const App: React.FC = () => {
         currentTab={currentTab}
         onSelectTab={setCurrentTab}
         onOpenPresets={() => setIsPresetsOpen(true)}
+        onOpenCocoaTip={() => setIsCocoaModalOpen(true)}
+        onOpenExportHelp={() => setIsExportHelpOpen(true)}
         onResetSession={handleResetSession}
         photosCount={photos.length}
         savedStripsCount={savedStrips.length}
+        totalCocoaCups={totalCocoaCups}
       />
 
       {/* Main Content Area */}
@@ -198,6 +270,7 @@ export const App: React.FC = () => {
             onChangeSettings={setSettings}
             onSaveToGallery={handleSaveToGallery}
             onBackToCamera={() => setCurrentTab('camera')}
+            onOpenCocoaModal={() => setIsCocoaModalOpen(true)}
           />
         )}
 
@@ -217,6 +290,20 @@ export const App: React.FC = () => {
         onApplyPreset={handleApplyPreset}
       />
 
+      {/* Cocoa Tip Modal */}
+      <CocoaTipModal
+        isOpen={isCocoaModalOpen}
+        onClose={() => setIsCocoaModalOpen(false)}
+        donations={donations}
+        onAddDonation={handleAddDonation}
+      />
+
+      {/* GitHub Export Guidance Modal */}
+      <ExportHelpModal
+        isOpen={isExportHelpOpen}
+        onClose={() => setIsExportHelpOpen(false)}
+      />
+
       {/* Editorial Footer */}
       <footer className="no-print border-t border-[#1c1d25] py-6 px-4 md:px-8 bg-[#0c0d10] text-center text-xs text-zinc-400">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
@@ -226,11 +313,21 @@ export const App: React.FC = () => {
             <span>Vintage & Modern Photobooth Darkroom</span>
           </div>
           <div className="flex items-center gap-4 text-[11px] text-zinc-400">
-            <span>High-Res 300 DPI Prints</span>
+            <button
+              onClick={() => setIsCocoaModalOpen(true)}
+              className="text-amber-400 hover:text-amber-300 flex items-center gap-1 transition-colors"
+            >
+              <span>เลี้ยงโกโก้คนสร้าง ({totalCocoaCups} แก้วแล้ว ☕)</span>
+            </button>
             <span aria-hidden="true">·</span>
-            <span>Web Audio Shutter</span>
+            <button
+              onClick={() => setIsExportHelpOpen(true)}
+              className="hover:text-zinc-200 transition-colors"
+            >
+              วิธี Export ไปยัง GitHub
+            </button>
             <span aria-hidden="true">·</span>
-            <span>Analog Film Tones</span>
+            <span>300 DPI High-Res Prints</span>
           </div>
         </div>
       </footer>
