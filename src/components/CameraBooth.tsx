@@ -67,7 +67,7 @@ export const CameraBooth: React.FC<CameraBoothProps> = ({
   const [retakeTargetId, setRetakeTargetId] = useState<string | null>(null);
 
   // TikTok / Instagram Face Filter state
-  const [activeFaceFilter, setActiveFaceFilter] = useState<string>('tiktok-dog');
+  const [activeFaceFilter, setActiveFaceFilter] = useState<string>('peach-dream');
   const [faceFilterCategory, setFaceFilterCategory] = useState<string>('all');
   const [isLandmarkerReady, setIsLandmarkerReady] = useState(false);
   const [faceDetected, setFaceDetected] = useState(false);
@@ -626,10 +626,10 @@ export const CameraBooth: React.FC<CameraBoothProps> = ({
               <div className="flex items-center gap-1 bg-[#1a1b22] border border-[#292b38] rounded-lg p-0.5">
                 {[
                   { id: 'all', label: 'ทั้งหมด' },
-                  { id: 'tiktok', label: 'TikTok ยอดฮิต' },
-                  { id: 'beauty', label: 'หน้าสวยเป๊ะ' },
-                  { id: 'aesthetic', label: 'Y2K แฟชั่น' },
-                  { id: 'funny', label: 'สายมีมฮาๆ' }
+                  { id: 'beauty', label: '✨ สวยหวานเกาหลี' },
+                  { id: 'cute', label: '🐾 สัตว์คาวาอี้' },
+                  { id: 'trendy', label: '🕶️ Y2K & แฟชั่น' },
+                  { id: 'funny', label: '😭 สายมีมฮาๆ' }
                 ].map((cat) => (
                   <button
                     key={cat.id}
