@@ -18,7 +18,9 @@ import { CapturedPhoto, FilterType, LayoutType } from '../types/photobooth';
 import { soundFX } from '../utils/audio';
 import { getFilterCssString } from '../utils/canvasExport';
 import { SAMPLE_PHOTO_POSES } from '../data/samplePhotos';
-import { FACE_FILTERS, FaceFilterItem } from '../data/faceFilters';
+import { TIKTOK_FACE_FILTERS, FaceFilterDef, renderFaceARFilter } from '../utils/faceARRenderer';
+import { getFaceLandmarker, extractTrackedFace, smoothFaceTracking, getCenteredDefaultFace, TrackedFace } from '../utils/faceTracker';
+import type { FaceLandmarker } from '@mediapipe/tasks-vision';
 
 interface CameraBoothProps {
   photos: CapturedPhoto[];
@@ -48,7 +50,10 @@ export const CameraBooth: React.FC<CameraBoothProps> = ({
   onChangeLayout
 }) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const overlayCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const landmarkerRef = useRef<FaceLandmarker | null>(null);
+  const trackedFaceRef = useRef<TrackedFace>(getCenteredDefaultFace());
 
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -62,10 +67,85 @@ export const CameraBooth: React.FC<CameraBoothProps> = ({
   const [retakeTargetId, setRetakeTargetId] = useState<string | null>(null);
 
   // TikTok / Instagram Face Filter state
-  const [activeFaceFilter, setActiveFaceFilter] = useState<string>('peach-blush');
+  const [activeFaceFilter, setActiveFaceFilter] = useState<string>('tiktok-dog');
+  const [faceFilterCategory, setFaceFilterCategory] = useState<string>('all');
+  const [isLandmarkerReady, setIsLandmarkerReady] = useState(false);
+  const [faceDetected, setFaceDetected] = useState(false);
 
   // Maximum photos needed for current layout
   const requiredPhotos = layout === '4-cut-strip' || layout === '2x2-quad' ? 4 : layout === '3-cut-strip' ? 3 : layout === 'duo-wide' ? 2 : 1;
+
+  // Initialize MediaPipe Face Landmarker
+  useEffect(() => {
+    let isMounted = true;
+    getFaceLandmarker().then((lm) => {
+      if (isMounted && lm) {
+        landmarkerRef.current = lm;
+        setIsLandmarkerReady(true);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Real-time 60FPS Face Tracking & Canvas AR loop
+  useEffect(() => {
+    let animId: number;
+    let lastVideoTime = -1;
+
+    const runLoop = () => {
+      if (videoRef.current && overlayCanvasRef.current) {
+        const video = videoRef.current;
+        const canvas = overlayCanvasRef.current;
+
+        if (video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0) {
+          if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+          }
+
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Process new video frame with MediaPipe Face Landmarker
+            if (landmarkerRef.current && video.currentTime !== lastVideoTime) {
+              lastVideoTime = video.currentTime;
+              try {
+                const results = landmarkerRef.current.detectForVideo(video, performance.now());
+                if (results.faceLandmarks && results.faceLandmarks.length > 0) {
+                  const rawFace = extractTrackedFace(results.faceLandmarks[0]);
+                  const smoothed = smoothFaceTracking(rawFace, 0.45);
+                  trackedFaceRef.current = smoothed;
+                  setFaceDetected(true);
+                } else {
+                  setFaceDetected(false);
+                }
+              } catch {
+                // Ignore dropped frame
+              }
+            }
+
+            // Render live Face AR Filter
+            renderFaceARFilter(
+              ctx,
+              canvas.width,
+              canvas.height,
+              trackedFaceRef.current,
+              activeFaceFilter,
+              isMirrored,
+              performance.now()
+            );
+          }
+        }
+      }
+      animId = requestAnimationFrame(runLoop);
+    };
+
+    animId = requestAnimationFrame(runLoop);
+    return () => cancelAnimationFrame(animId);
+  }, [activeFaceFilter, isMirrored]);
 
   // Start Camera
   const startCamera = useCallback(async () => {
@@ -125,22 +205,19 @@ export const CameraBooth: React.FC<CameraBoothProps> = ({
 
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    // Bake live Instagram/TikTok Face AR filter directly onto the snapshot!
-    const currentFace = FACE_FILTERS.find((f) => f.id === activeFaceFilter);
-    if (currentFace && currentFace.svgOverlay) {
-      try {
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
-        const faceImg = new Image();
-        faceImg.src = `data:image/svg+xml;utf8,${encodeURIComponent(currentFace.svgOverlay)}`;
-        await new Promise((resolve) => {
-          faceImg.onload = resolve;
-          faceImg.onerror = resolve;
-        });
-        ctx.drawImage(faceImg, 0, 0, canvas.width, canvas.height);
-      } catch (e) {
-        console.warn('Could not draw face filter onto snapshot:', e);
-      }
-    }
+    // Reset transform for filter drawing
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+    // Bake live tracked Face AR filter directly onto the snapshot!
+    renderFaceARFilter(
+      ctx,
+      canvas.width,
+      canvas.height,
+      trackedFaceRef.current,
+      activeFaceFilter,
+      isMirrored,
+      performance.now()
+    );
 
     return canvas.toDataURL('image/jpeg', 0.95);
   }, [isMirrored, activeFaceFilter]);
@@ -293,7 +370,12 @@ export const CameraBooth: React.FC<CameraBoothProps> = ({
     { id: 'cinematic', label: 'Teal & Orange', desc: 'โทนภาพยนตร์' }
   ];
 
-  const currentFace = FACE_FILTERS.find((f) => f.id === activeFaceFilter);
+  const currentFace = TIKTOK_FACE_FILTERS.find((f) => f.id === activeFaceFilter) || TIKTOK_FACE_FILTERS[0];
+
+  const filteredFaceFilters = TIKTOK_FACE_FILTERS.filter((f) => {
+    if (faceFilterCategory === 'all') return true;
+    return f.category === faceFilterCategory;
+  });
 
   return (
     <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
@@ -304,11 +386,11 @@ export const CameraBooth: React.FC<CameraBoothProps> = ({
           <h1 className="text-xl sm:text-2xl md:text-3xl font-bold font-serif text-white tracking-tight flex items-center gap-2">
             <span>Booth Camera</span>
             <span className="text-[11px] font-sans font-medium text-amber-300 bg-amber-500/20 border border-amber-500/30 px-2 py-0.5 rounded-full">
-              Live AR Filters
+              Live TikTok Face AR
             </span>
           </h1>
           <p className="text-xs sm:text-sm text-zinc-400 mt-0.5">
-            เลือกฟิลเตอร์หน้าสดใสแบบ IG & TikTok โพสท่า แล้วกดถ่ายได้เลย!
+            ฟิลเตอร์หน้าสดใสแบบ TikTok & IG ตามการเอียงหน้า ขยับปาก และมุมกล้องเรียลไทม์!
           </p>
         </div>
 
@@ -404,13 +486,11 @@ export const CameraBooth: React.FC<CameraBoothProps> = ({
               }`}
             />
 
-            {/* LIVE INSTAGRAM & TIKTOK FACE AR OVERLAY */}
-            {currentFace && currentFace.svgOverlay && (
-              <div 
-                className="absolute inset-0 pointer-events-none z-10 w-full h-full"
-                dangerouslySetInnerHTML={{ __html: currentFace.svgOverlay }}
-              />
-            )}
+            {/* LIVE REAL-TIME FACE TRACKING AR CANVAS (60FPS - Tracks face, eyes, ears, mouth!) */}
+            <canvas
+              ref={overlayCanvasRef}
+              className="absolute inset-0 pointer-events-none z-15 w-full h-full object-cover"
+            />
 
             {/* Camera Error / Permission Fallback View */}
             {cameraError && (
@@ -471,10 +551,30 @@ export const CameraBooth: React.FC<CameraBoothProps> = ({
 
             {/* Viewport HUD Overlays */}
             <div className="absolute top-4 left-4 right-4 flex items-center justify-between pointer-events-none z-20">
-              {/* Active face filter badge */}
-              <div className="pointer-events-auto bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-md text-[11px] font-medium text-zinc-300 flex items-center gap-1.5 border border-white/10">
-                <span className="text-sm">{currentFace?.icon || '✨'}</span>
-                <span>{currentFace?.name}</span>
+              {/* Active face filter badge & tracking status */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="pointer-events-auto bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-md text-[11px] font-medium text-zinc-300 flex items-center gap-1.5 border border-white/10">
+                  <span className="text-sm">{currentFace?.icon || '✨'}</span>
+                  <span className="font-semibold text-white">{currentFace?.name}</span>
+                </div>
+
+                {/* Real-time Tracking Status Badge */}
+                <div className={`pointer-events-auto px-2 py-0.5 rounded-md text-[10px] font-medium backdrop-blur-md flex items-center gap-1.5 border ${
+                  faceDetected
+                    ? 'bg-emerald-950/80 border-emerald-500/60 text-emerald-300 shadow-xs'
+                    : isLandmarkerReady
+                    ? 'bg-amber-950/80 border-amber-500/60 text-amber-300'
+                    : 'bg-zinc-900/80 border-zinc-700 text-zinc-400'
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${faceDetected ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+                  <span>
+                    {faceDetected
+                      ? 'AI Face Mesh: ตามหน้าสดเรียลไทม์'
+                      : isLandmarkerReady
+                      ? 'ส่องหน้าเข้ากล้องเพื่อเริ่มตาม'
+                      : 'เตรียม AI Face Tracker...'}
+                  </span>
+                </div>
               </div>
 
               {/* Viewport Mirror Toggle */}
@@ -506,29 +606,49 @@ export const CameraBooth: React.FC<CameraBoothProps> = ({
           </div>
 
           {/* TIKTOK & INSTAGRAM LIVE FACE AR FILTERS SELECTOR */}
-          <div className="bg-[#14151b] border border-[#262833] rounded-2xl p-3.5">
-            <div className="flex items-center justify-between mb-2.5 px-1">
+          <div className="bg-[#14151b] border border-[#262833] rounded-2xl p-3.5 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 px-1">
               <div className="flex items-center gap-2">
                 <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-pink-500 via-rose-500 to-amber-500 flex items-center justify-center text-white text-xs shadow-xs">
                   <Smile className="w-3.5 h-3.5" />
                 </div>
                 <div>
                   <span className="text-xs font-bold text-white block leading-none">
-                    ฟิลเตอร์หน้าสไตล์ IG & TikTok (Live Face AR)
+                    ฟิลเตอร์หน้าสไตล์ TikTok & Instagram (Face AR)
                   </span>
                   <span className="text-[10px] text-zinc-400">
-                    หูแมว วงแหวนนางฟ้า บลัชแก้มส้ม แว่นหัวใจ สวมบนหน้าสดทันที
+                    หมาลิ้นห้อยเมื่ออ้าปาก, หูแมว, แว่นหัวใจ, ผีเสื้อบิน, กลามัวร์หน้าเป๊ะ (ขยับตามหน้าจริง)
                   </span>
                 </div>
               </div>
-              <span className="text-[10px] text-rose-400 font-mono font-semibold hidden sm:inline">
-                {FACE_FILTERS.length} ฟิลเตอร์
-              </span>
+
+              {/* Category tabs */}
+              <div className="flex items-center gap-1 bg-[#1a1b22] border border-[#292b38] rounded-lg p-0.5">
+                {[
+                  { id: 'all', label: 'ทั้งหมด' },
+                  { id: 'tiktok', label: 'TikTok ยอดฮิต' },
+                  { id: 'beauty', label: 'หน้าสวยเป๊ะ' },
+                  { id: 'aesthetic', label: 'Y2K แฟชั่น' },
+                  { id: 'funny', label: 'สายมีมฮาๆ' }
+                ].map((cat) => (
+                  <button
+                    key={cat.id}
+                    onClick={() => setFaceFilterCategory(cat.id)}
+                    className={`px-2 py-0.5 text-[10px] font-semibold rounded-md transition-colors whitespace-nowrap ${
+                      faceFilterCategory === cat.id
+                        ? 'bg-rose-600 text-white'
+                        : 'text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    {cat.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Filter Buttons Carousel */}
             <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-              {FACE_FILTERS.map((ff) => {
+              {filteredFaceFilters.map((ff) => {
                 const isSelected = activeFaceFilter === ff.id;
                 return (
                   <button
@@ -548,7 +668,7 @@ export const CameraBooth: React.FC<CameraBoothProps> = ({
                       <span className="text-xs font-bold block leading-tight whitespace-nowrap">
                         {ff.name}
                       </span>
-                      <span className="text-[10px] text-zinc-400 block truncate max-w-[120px]">
+                      <span className="text-[10px] text-zinc-400 block truncate max-w-[130px]">
                         {ff.tagline}
                       </span>
                     </div>

@@ -20,7 +20,12 @@ import {
   Play,
   Square,
   Coffee,
-  Heart
+  Heart,
+  Search,
+  Shuffle,
+  CopyPlus,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { 
@@ -77,6 +82,7 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
   const [stickerTypeTab, setStickerTypeTab] = useState<'graphic' | 'emoji'>('graphic');
   const [graphicCategory, setGraphicCategory] = useState<string>('all');
   const [emojiCategory, setEmojiCategory] = useState<string>('all');
+  const [stickerSearch, setStickerSearch] = useState<string>('');
   const [zoomLevel, setZoomLevel] = useState<number>(1);
 
   // Doodle pen states
@@ -162,6 +168,42 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
         s.id === selectedStickerId ? { ...s, ...partial } : s
       )
     });
+  };
+
+  const handleDuplicateSticker = (id: string) => {
+    const stk = settings.stickers.find((s) => s.id === id);
+    if (!stk) return;
+    soundFX.playPop();
+    const copy: PlacedSticker = {
+      ...stk,
+      id: `copy_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      x: Math.min(85, stk.x + 5),
+      y: Math.min(85, stk.y + 5)
+    };
+    updateSettings({ stickers: [...settings.stickers, copy] });
+    setSelectedStickerId(copy.id);
+  };
+
+  const handleBringToFront = (id: string) => {
+    const stk = settings.stickers.find((s) => s.id === id);
+    if (!stk) return;
+    updateSettings({
+      stickers: [...settings.stickers.filter((s) => s.id !== id), stk]
+    });
+  };
+
+  const handleSendToBack = (id: string) => {
+    const stk = settings.stickers.find((s) => s.id === id);
+    if (!stk) return;
+    updateSettings({
+      stickers: [stk, ...settings.stickers.filter((s) => s.id !== id)]
+    });
+  };
+
+  const handleRandomSticker = () => {
+    soundFX.playPop();
+    const randomG = ILLUSTRATED_STICKERS[Math.floor(Math.random() * ILLUSTRATED_STICKERS.length)];
+    handleAddGraphicSticker(randomG);
   };
 
   // Sticker dragging
@@ -326,13 +368,21 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
   const selectedSticker = settings.stickers.find((s) => s.id === selectedStickerId);
 
   const filteredGraphics = ILLUSTRATED_STICKERS.filter((g) => {
-    if (graphicCategory === 'all') return true;
-    return g.category === graphicCategory;
+    const matchesCategory = graphicCategory === 'all' || g.category === graphicCategory;
+    if (!matchesCategory) return false;
+    if (!stickerSearch.trim()) return true;
+    const q = stickerSearch.toLowerCase().trim();
+    const nameMatch = g.name.toLowerCase().includes(q);
+    const tagMatch = g.tags && g.tags.some((t) => t.toLowerCase().includes(q));
+    return nameMatch || tagMatch;
   });
 
   const filteredEmojis = AVAILABLE_STICKERS.filter((s) => {
-    if (emojiCategory === 'all') return true;
-    return s.category === emojiCategory;
+    const matchesCategory = emojiCategory === 'all' || s.category === emojiCategory;
+    if (!matchesCategory) return false;
+    if (!stickerSearch.trim()) return true;
+    const q = stickerSearch.toLowerCase().trim();
+    return s.label.toLowerCase().includes(q) || s.symbol.includes(q);
   });
 
   return (
@@ -912,20 +962,48 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-semibold text-rose-300 flex items-center gap-1.5">
                       <Sparkles className="w-3.5 h-3.5" />
-                      <span>Adjust Selected Sticker</span>
+                      <span>จัดการสติกเกอร์ที่เลือก ({selectedSticker.symbol})</span>
                     </span>
                     <button
                       onClick={() => handleRemoveSticker(selectedSticker.id)}
-                      className="text-xs text-rose-400 hover:text-rose-300 flex items-center gap-1"
+                      className="text-xs text-rose-400 hover:text-rose-300 flex items-center gap-1 bg-rose-500/10 px-2 py-0.5 rounded-md"
                     >
                       <Trash2 className="w-3 h-3" />
-                      <span>Delete</span>
+                      <span>ลบ</span>
+                    </button>
+                  </div>
+
+                  {/* Layer & Duplicate Actions */}
+                  <div className="grid grid-cols-3 gap-1.5 pt-0.5">
+                    <button
+                      onClick={() => handleDuplicateSticker(selectedSticker.id)}
+                      className="px-2 py-1 bg-[#282a38] hover:bg-[#34374a] text-[11px] font-medium text-zinc-200 rounded-lg flex items-center justify-center gap-1 transition-colors"
+                      title="คัดลอกสติกเกอร์นี้"
+                    >
+                      <CopyPlus className="w-3 h-3 text-rose-400" />
+                      <span>คัดลอก</span>
+                    </button>
+                    <button
+                      onClick={() => handleBringToFront(selectedSticker.id)}
+                      className="px-2 py-1 bg-[#282a38] hover:bg-[#34374a] text-[11px] font-medium text-zinc-200 rounded-lg flex items-center justify-center gap-1 transition-colors"
+                      title="นำขึ้นมาไว้ข้างหน้าสุด"
+                    >
+                      <ArrowUp className="w-3 h-3 text-emerald-400" />
+                      <span>หน้าสุด</span>
+                    </button>
+                    <button
+                      onClick={() => handleSendToBack(selectedSticker.id)}
+                      className="px-2 py-1 bg-[#282a38] hover:bg-[#34374a] text-[11px] font-medium text-zinc-200 rounded-lg flex items-center justify-center gap-1 transition-colors"
+                      title="ส่งลงไปไว้ข้างหลังสุด"
+                    >
+                      <ArrowDown className="w-3 h-3 text-amber-400" />
+                      <span>หลังสุด</span>
                     </button>
                   </div>
 
                   <div>
                     <div className="flex justify-between text-[11px] text-zinc-400 mb-1">
-                      <span>Size</span>
+                      <span>ขนาด</span>
                       <span>{Math.round(selectedSticker.scale * 100)}%</span>
                     </div>
                     <input
@@ -941,7 +1019,7 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
 
                   <div>
                     <div className="flex justify-between text-[11px] text-zinc-400 mb-1">
-                      <span>Rotation</span>
+                      <span>หมุนองศา</span>
                       <span>{selectedSticker.rotation}°</span>
                     </div>
                     <input
@@ -957,17 +1035,51 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
                 </div>
               )}
 
+              {/* Search Bar & Random Sticker Action */}
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+                  <input
+                    type="text"
+                    value={stickerSearch}
+                    onChange={(e) => setStickerSearch(e.target.value)}
+                    placeholder="ค้นหา เช่น โบว์, โกโก้, แมว, ดาว, y2k..."
+                    className="w-full pl-8 pr-7 py-1.5 text-xs bg-[#1a1b22] border border-[#2a2c38] rounded-xl text-white placeholder-zinc-500 focus:outline-hidden focus:border-rose-500"
+                  />
+                  {stickerSearch && (
+                    <button
+                      onClick={() => setStickerSearch('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white text-xs"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                <button
+                  onClick={handleRandomSticker}
+                  className="px-2.5 py-1.5 bg-[#20222d] hover:bg-rose-950/40 border border-[#303342] hover:border-rose-500/60 rounded-xl text-xs font-semibold text-rose-300 flex items-center gap-1 shrink-0 transition-colors"
+                  title="สุ่มสติกเกอร์น่ารักมาติด 1 ชิ้น"
+                >
+                  <Shuffle className="w-3 h-3" />
+                  <span>สุ่มของตกแต่ง</span>
+                </button>
+              </div>
+
               {/* Graphic Stickers Catalog */}
               {stickerTypeTab === 'graphic' ? (
                 <>
                   <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
                     {[
-                      { id: 'all', label: 'ทั้งหมด' },
-                      { id: 'ribbons', label: 'โบว์ & ริบบิ้น' },
-                      { id: 'kawaii', label: 'คาวาอี้' },
-                      { id: 'y2k', label: 'Y2K แว่น&ดาว' },
-                      { id: 'tapes', label: 'เทป & คลิป' },
-                      { id: 'stamps', label: 'แสตมป์เกาหลี' }
+                      { id: 'all', label: `ทั้งหมด (${ILLUSTRATED_STICKERS.length})` },
+                      { id: 'ribbons', label: '🎀 โบว์ & ริบบิ้น' },
+                      { id: 'cafe', label: '☕ คาเฟ่ & โกโก้' },
+                      { id: 'animals', label: '🐾 สัตว์น่ารัก' },
+                      { id: 'y2k', label: '✨ Y2K & โครเมียม' },
+                      { id: 'flowers', label: '🌸 ดอกไม้ & ผลไม้' },
+                      { id: 'stamps', label: '🏷️ วาชิเทป & แสตมป์' },
+                      { id: 'props', label: '👓 พร็อพ & แว่น' },
+                      { id: 'doodles', label: '💬 สปีชบับเบิล' }
                     ].map((cat) => (
                       <button
                         key={cat.id}
@@ -983,22 +1095,27 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
                     ))}
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2.5 max-h-[280px] overflow-y-auto pr-1">
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5 max-h-[300px] overflow-y-auto pr-1">
                     {filteredGraphics.map((g) => (
                       <button
                         key={g.id}
                         onClick={() => handleAddGraphicSticker(g)}
-                        className="p-3 bg-[#1a1b22] hover:bg-[#252733] border border-[#2a2c38] hover:border-rose-500/60 rounded-xl flex flex-col items-center justify-center transition-all group"
+                        className="p-2.5 bg-[#1a1b22] hover:bg-[#252733] border border-[#2a2c38] hover:border-rose-500/60 rounded-xl flex flex-col items-center justify-center transition-all group"
                       >
                         <div 
-                          className="w-14 h-14 flex items-center justify-center group-hover:scale-115 transition-transform duration-150"
+                          className="w-12 h-12 flex items-center justify-center group-hover:scale-115 transition-transform duration-150"
                           dangerouslySetInnerHTML={{ __html: g.svg }}
                         />
-                        <span className="text-[10px] text-zinc-300 font-medium mt-1.5 truncate max-w-full">
+                        <span className="text-[10px] text-zinc-300 font-medium mt-1 truncate max-w-full text-center">
                           {g.name}
                         </span>
                       </button>
                     ))}
+                    {filteredGraphics.length === 0 && (
+                      <div className="col-span-full py-8 text-center text-xs text-zinc-500">
+                        ไม่พบสติกเกอร์ที่ตรงกับคำค้นหา ลองเปลี่ยนคำค้นหาดูนะ
+                      </div>
+                    )}
                   </div>
                 </>
               ) : (
