@@ -1,0 +1,27 @@
+{
+  "id": "/",
+  "name": "SnapBooth – Retro & Modern Photobooth",
+  "short_name": "SnapBooth",
+  "description": "Snap aesthetic photostrips, apply retro 35mm film tones & AR face filters, doodle, and print high-res strips directly on your device.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0c0d10",
+  "theme_color": "#0c0d10",
+  "categories": ["photo", "entertainment", "lifestyle"],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

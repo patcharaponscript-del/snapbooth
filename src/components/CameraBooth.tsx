@@ -22,6 +22,7 @@ import { SAMPLE_PHOTO_POSES } from '../data/samplePhotos';
 import { TIKTOK_FACE_FILTERS, FaceFilterDef, renderFaceARFilter } from '../utils/faceARRenderer';
 import { getFaceLandmarker, extractTrackedFace, smoothFaceTracking, getCenteredDefaultFace, TrackedFace } from '../utils/faceTracker';
 import type { FaceLandmarker } from '@mediapipe/tasks-vision';
+import { useI18n } from '../utils/i18n';
 
 interface CameraBoothProps {
   photos: CapturedPhoto[];
@@ -50,6 +51,7 @@ export const CameraBooth: React.FC<CameraBoothProps> = ({
   layout,
   onChangeLayout
 }) => {
+  const { lang, t } = useI18n();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -394,13 +396,13 @@ export const CameraBooth: React.FC<CameraBoothProps> = ({
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4 sm:mb-6">
         <div>
           <h1 className="text-xl sm:text-2xl md:text-3xl font-bold font-serif text-white tracking-tight flex items-center gap-2">
-            <span>Booth Camera</span>
+            <span>{t.cameraHeading}</span>
             <span className="text-[11px] font-sans font-medium text-amber-300 bg-amber-500/20 border border-amber-500/30 px-2 py-0.5 rounded-full">
-              Live TikTok Face AR
+              {t.liveARBadge}
             </span>
           </h1>
           <p className="text-xs sm:text-sm text-zinc-400 mt-0.5">
-            ฟิลเตอร์หน้าสดใสแบบ TikTok & IG ตามการเอียงหน้า ขยับปาก และมุมกล้องเรียลไทม์!
+            {t.cameraSubheading}
           </p>
         </div>
 
@@ -622,7 +624,7 @@ export const CameraBooth: React.FC<CameraBoothProps> = ({
             )}
           </div>
 
-          {/* Film Color Tones Ribbon (เน้นโทนสีฟิล์มเอกลักษณ์ของ Photobooth) */}
+          {/* Film Color Tones Ribbon */}
           <div className="bg-[#14151b] border border-[#262833] rounded-2xl p-3.5 space-y-2.5">
             <div className="flex flex-wrap items-center justify-between gap-2 px-1">
               <div className="flex items-center gap-2">
@@ -631,10 +633,10 @@ export const CameraBooth: React.FC<CameraBoothProps> = ({
                 </div>
                 <div>
                   <span className="text-xs font-bold text-white block leading-tight">
-                    โทนสีฟิล์ม Photobooth (Film Color Tones)
+                    {t.filmToneRibbonTitle}
                   </span>
                   <span className="text-[10px] text-zinc-400">
-                    ฟิล์ม 35mm, Y2K Flash, B&W High Contrast, Kodak Portra, Pastel Dream
+                    {t.filmToneRibbonDesc}
                   </span>
                 </div>
               </div>
@@ -647,10 +649,10 @@ export const CameraBooth: React.FC<CameraBoothProps> = ({
                     ? 'bg-rose-500/20 border-rose-500/60 text-rose-300'
                     : 'bg-[#1b1c24] border-[#2e3040] text-zinc-400 hover:text-zinc-200 hover:border-zinc-500'
                 }`}
-                title="กดเพื่อเปิดเมนูลูกเล่นฟิลเตอร์หน้า AR"
+                title={lang === 'en' ? 'Open Face AR Filters Menu' : 'กดเพื่อเปิดเมนูลูกเล่นฟิลเตอร์หน้า AR'}
               >
                 <Smile className="w-3.5 h-3.5 text-rose-400" />
-                <span>{activeFaceFilter !== 'none' ? `AR: ${currentFace?.name}` : 'ลูกเล่นฟิลเตอร์หน้า AR'}</span>
+                <span>{activeFaceFilter !== 'none' ? `AR: ${currentFace?.name}` : t.faceARBtn}</span>
               </button>
             </div>
 
@@ -694,20 +696,20 @@ export const CameraBooth: React.FC<CameraBoothProps> = ({
               />
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="px-3 py-2 text-xs font-semibold text-zinc-300 hover:text-white bg-[#1e2029] hover:bg-[#282a36] border border-[#303342] rounded-lg transition-colors flex items-center gap-1.5"
+                className="px-3 py-2 text-xs font-semibold text-zinc-300 hover:text-white bg-[#1e2029] hover:bg-[#282a38] border border-[#303342] rounded-lg transition-colors flex items-center gap-1.5"
                 title="Upload custom photos from device"
               >
                 <Upload className="w-3.5 h-3.5 text-rose-400" />
-                <span>Upload</span>
+                <span>{t.uploadBtn}</span>
               </button>
 
               <button
                 onClick={onLoadSamplePhotos}
-                className="px-3 py-2 text-xs font-semibold text-zinc-300 hover:text-white bg-[#1e2029] hover:bg-[#282a36] border border-[#303342] rounded-lg transition-colors flex items-center gap-1.5"
+                className="px-3 py-2 text-xs font-semibold text-zinc-300 hover:text-white bg-[#1e2029] hover:bg-[#282a38] border border-[#303342] rounded-lg transition-colors flex items-center gap-1.5"
                 title="Populate with styled demo poses"
               >
                 <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                <span>Demo Poses</span>
+                <span>{t.demoPosesBtn}</span>
               </button>
             </div>
 
@@ -828,7 +830,7 @@ export const CameraBooth: React.FC<CameraBoothProps> = ({
                         {index + 1}
                       </div>
                       <span className="text-[11px] text-zinc-500 font-medium">
-                        Empty Slot
+                        {t.emptySlot}
                       </span>
                     </div>
                   )}
@@ -845,13 +847,13 @@ export const CameraBooth: React.FC<CameraBoothProps> = ({
               className="w-full py-3 px-4 text-sm font-semibold text-white bg-rose-600 hover:bg-rose-500 active:bg-rose-700 rounded-xl transition-all shadow-md shadow-rose-900/30 disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center gap-2"
             >
               <Sparkles className="w-4 h-4" />
-              <span>Customize Photostrip</span>
+              <span>{t.customizePhotostrip}</span>
               {photos.length >= requiredPhotos && (
                 <Check className="w-4 h-4 ml-1 text-emerald-300" />
               )}
             </button>
             <p className="text-[11px] text-zinc-400 text-center mt-2">
-              Add cute stickers, ribbons, custom quotes & print
+              {t.customizeHint}
             </p>
           </div>
 

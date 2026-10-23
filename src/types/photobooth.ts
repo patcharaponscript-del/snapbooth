@@ -54,7 +54,28 @@ export interface FrameTheme {
   subtextHex: string;
   borderHex?: string;
   badgeStyle?: string;
-  isSpecialPattern?: 'sprockets' | 'checker' | 'gradient-sunset' | 'hearts' | 'newspaper' | 'hologram' | 'grid' | 'none';
+  category?: 'animals' | 'aesthetic' | 'retro' | 'classic';
+  emojiIcon?: string;
+  description?: string;
+  isSpecialPattern?: 
+    | 'sprockets' 
+    | 'checker' 
+    | 'gradient-sunset' 
+    | 'hearts' 
+    | 'newspaper' 
+    | 'hologram' 
+    | 'grid' 
+    | 'puppy'
+    | 'kitty'
+    | 'bunny'
+    | 'bear'
+    | 'capybara'
+    | 'froggy'
+    | 'chick'
+    | 'coquette'
+    | 'cyber-angel'
+    | 'arcade'
+    | 'none';
 }
 
 export interface StripSettings {

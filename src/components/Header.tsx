@@ -1,5 +1,7 @@
-import React from 'react';
-import { Camera, Sparkles, Image, Palette, RotateCcw, HelpCircle } from 'lucide-react';
+import React, { useState } from 'react';
+import { Camera, Sparkles, Image, Palette, RotateCcw, Globe, Download, ShieldCheck, X, Share2 } from 'lucide-react';
+import { useI18n } from '../utils/i18n';
+import { usePWAInstall } from '../utils/usePWAInstall';
 
 interface HeaderProps {
   currentTab: 'camera' | 'studio' | 'gallery';
@@ -24,8 +26,18 @@ export const Header: React.FC<HeaderProps> = ({
   savedStripsCount,
   totalCocoaCups
 }) => {
+  const { lang, setLang, t } = useI18n();
+  const { isInstallable, isInstalled, isIOS, install } = usePWAInstall();
+  const [showIOSModal, setShowIOSModal] = useState(false);
+
   return (
     <>
+      {/* Privacy & Safe Guarantee Top Notice (Dismissible or subtle) */}
+      <div className="bg-[#12131a] border-b border-[#20222a] py-1 px-3 text-[11px] text-zinc-400 text-center flex items-center justify-center gap-1.5 overflow-hidden">
+        <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+        <span className="truncate">{t.privacyBadge}</span>
+      </div>
+
       {/* Top Header Bar */}
       <header className="sticky top-0 z-40 bg-[#0c0d10]/95 backdrop-blur-md border-b border-[#22242c] px-3 sm:px-6 py-2.5">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
@@ -43,12 +55,12 @@ export const Header: React.FC<HeaderProps> = ({
                 SnapBooth
               </span>
               <span className="text-[10px] text-zinc-400 font-sans tracking-wide hidden sm:block">
-                Photobooth Studio
+                {t.brandSubtitle}
               </span>
             </div>
           </button>
 
-          {/* Desktop Navigation Links (Hidden on mobile to prevent overlapping) */}
+          {/* Desktop Navigation Links */}
           <nav className="hidden md:flex items-center gap-1.5 shrink-0">
             <button
               onClick={() => onSelectTab('camera')}
@@ -59,7 +71,7 @@ export const Header: React.FC<HeaderProps> = ({
               }`}
             >
               <Camera className="w-3.5 h-3.5 text-rose-400" />
-              <span>Booth Camera</span>
+              <span>{t.tabCamera}</span>
               {photosCount > 0 && (
                 <span className="px-1.5 py-0.2 text-[10px] bg-rose-500/20 text-rose-300 rounded-full font-mono font-bold">
                   {photosCount}
@@ -76,7 +88,7 @@ export const Header: React.FC<HeaderProps> = ({
               }`}
             >
               <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-              <span>Darkroom Studio</span>
+              <span>{t.tabStudio}</span>
             </button>
 
             <button
@@ -88,7 +100,7 @@ export const Header: React.FC<HeaderProps> = ({
               }`}
             >
               <Image className="w-3.5 h-3.5 text-sky-400" />
-              <span>Gallery</span>
+              <span>{t.tabGallery}</span>
               {savedStripsCount > 0 && (
                 <span className="px-1.5 py-0.2 text-[10px] bg-zinc-700 text-zinc-300 rounded-full font-mono font-bold">
                   {savedStripsCount}
@@ -102,12 +114,45 @@ export const Header: React.FC<HeaderProps> = ({
               title="Theme Presets"
             >
               <Palette className="w-3.5 h-3.5 text-purple-400" />
-              <span>Presets</span>
+              <span>{t.themePresets}</span>
             </button>
           </nav>
 
-          {/* Right Actions: Cocoa Tip & Primary Action */}
+          {/* Right Actions: Language Switcher, PWA, Cocoa Tip & Primary Action */}
           <div className="flex items-center gap-2 shrink-0">
+            {/* Language Switcher (EN / TH) */}
+            <button
+              onClick={() => setLang(lang === 'en' ? 'th' : 'en')}
+              className="px-2 sm:px-2.5 py-1.5 rounded-lg bg-[#181922] hover:bg-[#222430] border border-[#2b2d3c] text-zinc-300 hover:text-white text-xs font-semibold transition-colors flex items-center gap-1"
+              title={lang === 'en' ? 'เปลี่ยนเป็นภาษาไทย' : 'Switch to English'}
+            >
+              <Globe className="w-3.5 h-3.5 text-rose-400" />
+              <span>{lang === 'en' ? 'EN' : 'TH'}</span>
+            </button>
+
+            {/* In-App PWA Install Button */}
+            {!isInstalled && isInstallable && (
+              <button
+                onClick={install}
+                className="hidden sm:flex px-2.5 py-1.5 rounded-lg bg-[#181922] hover:bg-[#222430] border border-sky-500/40 text-sky-300 text-xs font-semibold transition-colors items-center gap-1.5"
+                title="Install SnapBooth on desktop/device"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>{t.installApp}</span>
+              </button>
+            )}
+
+            {!isInstalled && isIOS && (
+              <button
+                onClick={() => setShowIOSModal(true)}
+                className="hidden sm:flex px-2.5 py-1.5 rounded-lg bg-[#181922] hover:bg-[#222430] border border-sky-500/40 text-sky-300 text-xs font-semibold transition-colors items-center gap-1.5"
+                title="Add to Home Screen on iPhone / iPad"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>{t.installIos}</span>
+              </button>
+            )}
+
             {/* Cocoa Tip Button */}
             <button
               onClick={onOpenCocoaTip}
@@ -115,7 +160,7 @@ export const Header: React.FC<HeaderProps> = ({
               title="เลี้ยงค่าน้ำโกโก้คนสร้าง SnapBooth"
             >
               <span className="text-sm">☕</span>
-              <span className="hidden sm:inline">เลี้ยงโกโก้</span>
+              <span className="hidden sm:inline">{t.cocoaTip}</span>
               <span className="px-1.5 py-0.2 text-[10px] bg-amber-500/30 text-amber-300 font-mono rounded-full font-bold">
                 {totalCocoaCups}
               </span>
@@ -144,14 +189,14 @@ export const Header: React.FC<HeaderProps> = ({
               {currentTab === 'camera' ? (
                 <>
                   <Sparkles className="w-3.5 h-3.5 text-amber-200" />
-                  <span className="hidden sm:inline">Customize Strip</span>
-                  <span className="sm:hidden">Customize</span>
+                  <span className="hidden sm:inline">{t.customizePhotostrip}</span>
+                  <span className="sm:hidden">Studio</span>
                 </>
               ) : (
                 <>
                   <Camera className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Take Photos</span>
-                  <span className="sm:hidden">Shoot</span>
+                  <span className="hidden sm:inline">{t.snapPhoto}</span>
+                  <span className="sm:hidden">Camera</span>
                 </>
               )}
             </button>
@@ -159,6 +204,55 @@ export const Header: React.FC<HeaderProps> = ({
 
         </div>
       </header>
+
+      {/* iOS Safari Guided Install Modal */}
+      {showIOSModal && (
+        <div 
+          onClick={() => setShowIOSModal(false)}
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-sm rounded-2xl bg-[#161720] border border-[#2b2d3c] p-6 shadow-2xl space-y-4"
+          >
+            <div className="flex items-center justify-between pb-2 border-b border-[#262835]">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <Share2 className="w-4 h-4 text-rose-400" />
+                <span>{lang === 'en' ? 'Install on iPhone / iPad' : 'วิธีติดตั้งบน iPhone / iPad'}</span>
+              </h3>
+              <button 
+                onClick={() => setShowIOSModal(false)}
+                className="text-zinc-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="text-xs text-zinc-300 space-y-2.5 leading-relaxed">
+              <p>
+                {lang === 'en' 
+                  ? '1. Tap the Share button in Safari toolbar below.' 
+                  : '1. กดปุ่มแชร์ (Share) ที่แถบด้านล่างของ Safari'}
+              </p>
+              <p>
+                {lang === 'en' 
+                  ? '2. Scroll down and choose "Add to Home Screen" 📲' 
+                  : '2. เลื่อนลงแล้วเลือก "เพิ่มไปยังหน้าจอโฮม" (Add to Home Screen) 📲'}
+              </p>
+              <p className="text-[11px] text-zinc-400">
+                {lang === 'en' 
+                  ? 'SnapBooth will launch in fullscreen with optimal camera performance!' 
+                  : 'ใช้งานเต็มหน้าจอเหมือนแอปจริง และเปิดกล้องถ่ายได้เร็วขึ้น!'}
+              </p>
+            </div>
+            <button
+              onClick={() => setShowIOSModal(false)}
+              className="w-full py-2.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-semibold transition-colors"
+            >
+              {lang === 'en' ? 'Got It' : 'เข้าใจแล้ว'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Mobile Sub-Navigation Bar (Separated row so it NEVER overlaps on mobile phones) */}
       <nav className="md:hidden sticky top-[49px] z-30 bg-[#121319]/95 backdrop-blur-md border-b border-[#22242c] px-2 py-1.5 flex items-center justify-around gap-1">
@@ -171,7 +265,7 @@ export const Header: React.FC<HeaderProps> = ({
           }`}
         >
           <Camera className="w-3.5 h-3.5 text-rose-400" />
-          <span>Camera</span>
+          <span>{lang === 'en' ? 'Camera' : 'ตู้กล้อง'}</span>
           {photosCount > 0 && (
             <span className="px-1.5 py-0.2 text-[9px] bg-rose-500/20 text-rose-300 rounded-full font-mono font-bold">
               {photosCount}
@@ -188,7 +282,7 @@ export const Header: React.FC<HeaderProps> = ({
           }`}
         >
           <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-          <span>Studio</span>
+          <span>{lang === 'en' ? 'Studio' : 'สตูดิโอ'}</span>
         </button>
 
         <button
@@ -200,7 +294,7 @@ export const Header: React.FC<HeaderProps> = ({
           }`}
         >
           <Image className="w-3.5 h-3.5 text-sky-400" />
-          <span>Gallery</span>
+          <span>{lang === 'en' ? 'Gallery' : 'แกลเลอรี'}</span>
           {savedStripsCount > 0 && (
             <span className="px-1.5 py-0.2 text-[9px] bg-zinc-700 text-zinc-300 rounded-full font-mono font-bold">
               {savedStripsCount}
@@ -214,7 +308,7 @@ export const Header: React.FC<HeaderProps> = ({
           title="Presets"
         >
           <Palette className="w-3.5 h-3.5 text-purple-400" />
-          <span>Presets</span>
+          <span>{lang === 'en' ? 'Themes' : 'ธีม'}</span>
         </button>
       </nav>
     </>

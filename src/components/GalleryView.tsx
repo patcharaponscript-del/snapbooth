@@ -11,6 +11,7 @@ import {
   Layers
 } from 'lucide-react';
 import { SavedStrip } from '../types/photobooth';
+import { useI18n } from '../utils/i18n';
 
 interface GalleryViewProps {
   savedStrips: SavedStrip[];
@@ -24,6 +25,7 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
   onDeleteStrip,
   onGoToCamera
 }) => {
+  const { lang, t } = useI18n();
   const [activeLightboxStrip, setActiveLightboxStrip] = useState<SavedStrip | null>(null);
 
   const handleDownload = (strip: SavedStrip) => {
@@ -64,10 +66,10 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
       <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold font-serif text-white tracking-tight">
-            Booth Gallery
+            {t.galleryHeading}
           </h1>
           <p className="text-xs md:text-sm text-zinc-400 mt-0.5">
-            Your collection of printed photostrips and snapshots.
+            {t.gallerySubheading}
           </p>
         </div>
 
@@ -76,7 +78,7 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
           className="px-4 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-500 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm shadow-rose-900/40"
         >
           <Camera className="w-3.5 h-3.5" />
-          <span>New Booth Shoot</span>
+          <span>{lang === 'en' ? 'New Booth Shoot' : 'ถ่ายรูปใหม่ที่ตู้'}</span>
         </button>
       </div>
 
@@ -87,17 +89,17 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
             <Sparkles className="w-6 h-6" />
           </div>
           <h2 className="text-lg font-bold font-serif text-white mb-2">
-            No Strips Saved Yet
+            {t.noSavedStripsTitle}
           </h2>
           <p className="text-xs text-zinc-400 mb-6 leading-relaxed max-w-md mx-auto">
-            Take photos in the Booth Camera, decorate them with cute stickers & vintage filters in the Darkroom Studio, and click "Save Strip" to build your photo wall!
+            {t.noSavedStripsDesc}
           </p>
           <button
             onClick={onGoToCamera}
             className="px-5 py-2.5 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-500 rounded-xl transition-all shadow-md shadow-rose-900/40 inline-flex items-center gap-2"
           >
             <Camera className="w-4 h-4" />
-            <span>Launch Booth Camera</span>
+            <span>{lang === 'en' ? 'Launch Booth Camera' : 'เปิดตู้ถ่ายรูปเลย'}</span>
           </button>
         </div>
       ) : (

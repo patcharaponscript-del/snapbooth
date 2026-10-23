@@ -158,11 +158,11 @@ export async function renderPhotostripToCanvas(
 
   // Special pattern: Hearts
   if (frame.isSpecialPattern === 'hearts') {
-    ctx.font = '14px sans-serif';
+    ctx.font = '18px sans-serif';
     ctx.fillStyle = '#F43F5E';
-    for (let x = 20; x < width - 20; x += 35) {
-      ctx.fillText('♡', x, 22);
-      ctx.fillText('♡', x, height - 15);
+    for (let x = 24; x < width - 24; x += 40) {
+      ctx.fillText('♡', x, 24);
+      ctx.fillText('♡', x, height - 16);
     }
   }
 
@@ -182,6 +182,142 @@ export async function renderPhotostripToCanvas(
       ctx.lineTo(width, y);
       ctx.stroke();
     }
+  }
+
+  // Animal Frame 1: Puppy & Paws 🐶
+  if (frame.isSpecialPattern === 'puppy') {
+    ctx.font = '36px "Apple Color Emoji", "Segoe UI Emoji", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    // Peeking puppy on top
+    ctx.fillText('🐶', width / 2, 28);
+    // Paw prints on borders
+    ctx.font = '18px "Apple Color Emoji", "Segoe UI Emoji", sans-serif';
+    for (let y = 60; y < height - 70; y += 75) {
+      ctx.fillText('🐾', 18, y);
+      ctx.fillText('🐾', width - 18, y + 35);
+    }
+    ctx.font = '20px "Apple Color Emoji", "Segoe UI Emoji", sans-serif';
+    ctx.fillText('🦴', width / 2 - 40, height - 20);
+    ctx.fillText('🦴', width / 2 + 40, height - 20);
+  }
+
+  // Animal Frame 2: Kitty & Fish 🐱
+  if (frame.isSpecialPattern === 'kitty') {
+    ctx.font = '36px "Apple Color Emoji", "Segoe UI Emoji", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🐱', width / 2, 28);
+    ctx.font = '18px "Apple Color Emoji", "Segoe UI Emoji", sans-serif';
+    for (let y = 60; y < height - 70; y += 75) {
+      ctx.fillText('🐾', 18, y);
+      ctx.fillText('🐾', width - 18, y + 35);
+    }
+    ctx.font = '20px "Apple Color Emoji", "Segoe UI Emoji", sans-serif';
+    ctx.fillText('🐟', width / 2 - 35, height - 20);
+    ctx.fillText('🐟', width / 2 + 35, height - 20);
+  }
+
+  // Animal Frame 3: Bunny & Carrots 🐰
+  if (frame.isSpecialPattern === 'bunny') {
+    ctx.font = '36px "Apple Color Emoji", "Segoe UI Emoji", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🐰', width / 2, 28);
+    ctx.font = '18px "Apple Color Emoji", "Segoe UI Emoji", sans-serif';
+    for (let y = 60; y < height - 70; y += 75) {
+      ctx.fillText('🥕', 18, y);
+      ctx.fillText('🥕', width - 18, y + 35);
+    }
+  }
+
+  // Animal Frame 4: Teddy Bear & Honey 🐻
+  if (frame.isSpecialPattern === 'bear') {
+    ctx.font = '36px "Apple Color Emoji", "Segoe UI Emoji", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🐻', width / 2, 28);
+    ctx.font = '18px "Apple Color Emoji", "Segoe UI Emoji", sans-serif';
+    for (let y = 60; y < height - 70; y += 75) {
+      ctx.fillText('🍯', 18, y);
+      ctx.fillText('🐝', width - 18, y + 35);
+    }
+  }
+
+  // Animal Frame 5: Capybara Onsen 🦫
+  if (frame.isSpecialPattern === 'capybara') {
+    ctx.font = '36px "Apple Color Emoji", "Segoe UI Emoji", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🦫', width / 2, 28);
+    ctx.font = '18px "Apple Color Emoji", "Segoe UI Emoji", sans-serif';
+    for (let y = 60; y < height - 70; y += 75) {
+      ctx.fillText('🍊', 18, y);
+      ctx.fillText('♨️', width - 18, y + 35);
+    }
+  }
+
+  // Animal Frame 6: Matcha Froggy 🐸
+  if (frame.isSpecialPattern === 'froggy') {
+    ctx.font = '36px "Apple Color Emoji", "Segoe UI Emoji", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🐸', width / 2, 28);
+    ctx.font = '18px "Apple Color Emoji", "Segoe UI Emoji", sans-serif';
+    for (let y = 60; y < height - 70; y += 75) {
+      ctx.fillText('🌿', 18, y);
+      ctx.fillText('🪷', width - 18, y + 35);
+    }
+  }
+
+  // Animal Frame 7: Duckling Friends 🐥
+  if (frame.isSpecialPattern === 'chick') {
+    ctx.font = '36px "Apple Color Emoji", "Segoe UI Emoji", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🐥', width / 2, 28);
+    ctx.font = '18px "Apple Color Emoji", "Segoe UI Emoji", sans-serif';
+    for (let y = 60; y < height - 70; y += 75) {
+      ctx.fillText('🌼', 18, y);
+      ctx.fillText('🐥', width - 18, y + 35);
+    }
+  }
+
+  // Coquette Ribbon Bows 🎀
+  if (frame.isSpecialPattern === 'coquette') {
+    ctx.font = '28px "Apple Color Emoji", "Segoe UI Emoji", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🎀', 24, 24);
+    ctx.fillText('🎀', width - 24, 24);
+    ctx.fillText('🎀', 24, height - 24);
+    ctx.fillText('🎀', width - 24, height - 24);
+  }
+
+  // Cyber Angel Y2K 🛸
+  if (frame.isSpecialPattern === 'cyber-angel') {
+    ctx.font = '28px "Apple Color Emoji", "Segoe UI Emoji", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🪽', width / 2 - 40, 24);
+    ctx.fillText('🪽', width / 2 + 40, 24);
+    ctx.font = '16px "Space Mono", monospace';
+    ctx.fillStyle = '#38BDF8';
+    for (let y = 60; y < height - 70; y += 65) {
+      ctx.fillText('✦', 16, y);
+      ctx.fillText('✦', width - 16, y + 30);
+    }
+  }
+
+  // Retro 8-Bit Arcade 🕹️
+  if (frame.isSpecialPattern === 'arcade') {
+    ctx.font = '20px "Apple Color Emoji", "Segoe UI Emoji", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('👾 1P READY 👾', width / 2, 22);
+    ctx.font = '14px "Space Mono", monospace';
+    ctx.fillStyle = '#F43F5E';
+    ctx.fillText('♥♥♥ HP MAX', width / 2, height - 20);
   }
 
   // Pre-load photo image elements
@@ -336,7 +472,7 @@ export async function renderPhotostripToCanvas(
       ctx.save();
       ctx.beginPath();
       ctx.strokeStyle = stroke.color;
-      ctx.lineWidth = (stroke.size / 100) * width * 0.04;
+      ctx.lineWidth = Math.max(3, stroke.size * (width / 320));
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
 

@@ -95,14 +95,8 @@ const INITIAL_DONATIONS: CocoaDonation[] = [
 export const App: React.FC = () => {
   const [currentTab, setCurrentTab] = useState<'camera' | 'studio' | 'gallery'>('camera');
   
-  // Initialize photos with default sample poses
-  const [photos, setPhotos] = useState<CapturedPhoto[]>(() => {
-    return SAMPLE_PHOTO_POSES.map((dataUrl, idx) => ({
-      id: `sample_${idx + 1}`,
-      dataUrl,
-      timestamp: Date.now() - (4 - idx) * 10000
-    }));
-  });
+  // Start with empty photo queue so user can snap photos directly from a clean slate
+  const [photos, setPhotos] = useState<CapturedPhoto[]>([]);
 
   const [settings, setSettings] = useState<StripSettings>(DEFAULT_SETTINGS);
   const [isPresetsOpen, setIsPresetsOpen] = useState(false);
@@ -135,10 +129,15 @@ export const App: React.FC = () => {
     return INITIAL_DONATIONS;
   });
 
-  // Pre-seed 1 initial showcase strip in gallery on very first visit
+  // Pre-seed 1 initial showcase strip in gallery on very first visit without polluting active photo booth queue
   useEffect(() => {
-    if (savedStrips.length === 0 && photos.length > 0) {
-      renderPhotostripToCanvas(photos, DEFAULT_SETTINGS).then((canvas) => {
+    if (savedStrips.length === 0) {
+      const demoPhotos: CapturedPhoto[] = SAMPLE_PHOTO_POSES.map((dataUrl, idx) => ({
+        id: `demo_pose_${idx + 1}`,
+        dataUrl,
+        timestamp: Date.now() - (4 - idx) * 10000
+      }));
+      renderPhotostripToCanvas(demoPhotos, DEFAULT_SETTINGS).then((canvas) => {
         const initialStrip: SavedStrip = {
           id: 'initial_demo_strip',
           dataUrl: canvas.toDataURL('image/jpeg', 0.92),
@@ -205,7 +204,7 @@ export const App: React.FC = () => {
 
   const handleResetSession = () => {
     if (window.confirm('Reset current photobooth session?')) {
-      handleLoadSamplePhotos();
+      setPhotos([]);
       setSettings(DEFAULT_SETTINGS);
       setCurrentTab('camera');
     }
