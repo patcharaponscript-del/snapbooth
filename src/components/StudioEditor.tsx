@@ -207,15 +207,18 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
   };
 
   // Sticker dragging
-  const touchGestureRef = useRef<{
-  id: string;
-  startDistance: number;
-  startAngle: number;
-  startScale: number;
-  startRotation: number;
-} | null>(null);
-
-const touchDragRef = useRef<string | null>(null);
+  const handleStickerPointerDown = (e: React.PointerEvent, id: string) => {
+    if (isDoodleMode) return;
+    e.preventDefault();
+    e.stopPropagation();
+    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
+    setSelectedStickerId(id);
+    draggingStickerRef.current = {
+      id,
+      startX: e.clientX,
+      startY: e.clientY
+    };
+  };
 
   // Doodle drawing handlers on strip container
   const handleContainerPointerDown = (e: React.PointerEvent) => {
@@ -684,51 +687,39 @@ const touchDragRef = useRef<string | null>(null);
               </div>
 
               {/* Render Doodles SVG Layer */}
-<svg
-  viewBox="0 0 100 100"
-  preserveAspectRatio="none"
-  className="absolute inset-0 w-full h-full pointer-events-none z-20"
->
-  {(settings.doodles || []).map((stroke) => {
-    if (!stroke.points || stroke.points.length < 2) return null;
+              <svg className="absolute inset-0 w-full h-full pointer-events-none z-20">
+                {(settings.doodles || []).map((stroke) => {
+                  if (!stroke.points || stroke.points.length < 2) return null;
+                  const pathData = stroke.points.reduce((acc, pt, i) => {
+                    return i === 0 ? `M ${pt.x}% ${pt.y}%` : `${acc} L ${pt.x}% ${pt.y}%`;
+                  }, '');
+                  return (
+                    <path
+                      key={stroke.id}
+                      d={pathData}
+                      fill="none"
+                      stroke={stroke.color}
+                      strokeWidth={stroke.size}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  );
+                })}
 
-    const pathData = stroke.points
-      .map((pt, i) =>
-        `${i === 0 ? 'M' : 'L'} ${pt.x} ${pt.y}`
-      )
-      .join(' ');
-
-    return (
-      <path
-        key={stroke.id}
-        d={pathData}
-        fill="none"
-        stroke={stroke.color}
-        strokeWidth={stroke.size}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        vectorEffect="non-scaling-stroke"
-      />
-    );
-  })}
-
-  {/* Live Current Drawing Stroke */}
-  {currentStroke && currentStroke.length > 1 && (
-    <path
-      d={currentStroke
-        .map((pt, i) =>
-          `${i === 0 ? 'M' : 'L'} ${pt.x} ${pt.y}`
-        )
-        .join(' ')}
-      fill="none"
-      stroke={doodleColor}
-      strokeWidth={doodleSize}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      vectorEffect="non-scaling-stroke"
-    />
-  )}
-</svg>
+                {/* Live Current Drawing Stroke */}
+                {currentStroke && currentStroke.length > 1 && (
+                  <path
+                    d={currentStroke.reduce((acc, pt, i) => {
+                      return i === 0 ? `M ${pt.x}% ${pt.y}%` : `${acc} L ${pt.x}% ${pt.y}%`;
+                    }, '')}
+                    fill="none"
+                    stroke={doodleColor}
+                    strokeWidth={doodleSize}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                )}
+              </svg>
 
               {/* Placed Interactive Stickers */}
               {settings.stickers.map((stk) => {
