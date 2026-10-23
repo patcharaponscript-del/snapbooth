@@ -195,6 +195,110 @@ const updateStickerById = (
     )
   });
 };
+
+  const handleStickerTouchStart = (
+  e: React.TouchEvent<HTMLDivElement>,
+  id: string
+) => {
+  if (isDoodleMode) return;
+
+  e.stopPropagation();
+  setSelectedStickerId(id);
+
+  const sticker = settings.stickers.find((s) => s.id === id);
+  if (!sticker) return;
+
+  if (e.touches.length >= 2) {
+    e.preventDefault();
+
+    touchDragRef.current = null;
+    touchGestureRef.current = {
+      id,
+      startDistance: Math.max(getTouchDistance(e.touches), 1),
+      startAngle: getTouchAngle(e.touches),
+      startScale: sticker.scale,
+      startRotation: sticker.rotation
+    };
+  } else {
+    touchGestureRef.current = null;
+    touchDragRef.current = id;
+  }
+};
+
+const handleStickerTouchMove = (
+  e: React.TouchEvent<HTMLDivElement>,
+  id: string
+) => {
+  if (isDoodleMode) return;
+
+  const gesture = touchGestureRef.current;
+
+  if (e.touches.length >= 2 && gesture?.id === id) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const distance = getTouchDistance(e.touches);
+    const angle = getTouchAngle(e.touches);
+
+    const scale = Math.max(
+      0.5,
+      Math.min(
+        2.5,
+        gesture.startScale * (distance / gesture.startDistance)
+      )
+    );
+
+    const rotation = gesture.startRotation +
+      (angle - gesture.startAngle);
+
+    updateStickerById(id, {
+      scale: Math.round(scale * 100) / 100,
+      rotation: Math.round(rotation)
+    });
+
+    return;
+  }
+
+  if (e.touches.length === 1 && touchDragRef.current === id) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const touch = e.touches[0];
+    const rect = stripContainerRef.current?.getBoundingClientRect();
+
+    if (!rect || !rect.width || !rect.height) return;
+
+    const x = Math.max(
+      5,
+      Math.min(95, ((touch.clientX - rect.left) / rect.width) * 100)
+    );
+
+    const y = Math.max(
+      5,
+      Math.min(95, ((touch.clientY - rect.top) / rect.height) * 100)
+    );
+
+    updateStickerById(id, {
+      x: Math.round(x),
+      y: Math.round(y)
+    });
+  }
+};
+
+const handleStickerTouchEnd = (
+  e: React.TouchEvent<HTMLDivElement>,
+  id: string
+) => {
+  if (e.touches.length < 2) {
+    touchGestureRef.current = null;
+  }
+
+  if (e.touches.length === 0) {
+    touchDragRef.current = null;
+  } else if (e.touches.length === 1) {
+    touchDragRef.current = id;
+  }
+};
   const handleDuplicateSticker = (id: string) => {
     const stk = settings.stickers.find((s) => s.id === id);
     if (!stk) return;
