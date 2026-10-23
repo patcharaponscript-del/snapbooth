@@ -207,18 +207,15 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
   };
 
   // Sticker dragging
-  const handleStickerPointerDown = (e: React.PointerEvent, id: string) => {
-    if (isDoodleMode) return;
-    e.preventDefault();
-    e.stopPropagation();
-    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
-    setSelectedStickerId(id);
-    draggingStickerRef.current = {
-      id,
-      startX: e.clientX,
-      startY: e.clientY
-    };
-  };
+  const touchGestureRef = useRef<{
+  id: string;
+  startDistance: number;
+  startAngle: number;
+  startScale: number;
+  startRotation: number;
+} | null>(null);
+
+const touchDragRef = useRef<string | null>(null);
 
   // Doodle drawing handlers on strip container
   const handleContainerPointerDown = (e: React.PointerEvent) => {
