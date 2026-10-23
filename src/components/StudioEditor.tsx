@@ -209,7 +209,9 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
   // Sticker dragging
   const handleStickerPointerDown = (e: React.PointerEvent, id: string) => {
     if (isDoodleMode) return;
+    e.preventDefault();
     e.stopPropagation();
+    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
     setSelectedStickerId(id);
     draggingStickerRef.current = {
       id,
@@ -221,6 +223,8 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
   // Doodle drawing handlers on strip container
   const handleContainerPointerDown = (e: React.PointerEvent) => {
     if (!isDoodleMode || !stripContainerRef.current) return;
+    e.preventDefault();
+    try { stripContainerRef.current.setPointerCapture(e.pointerId); } catch {}
     const rect = stripContainerRef.current.getBoundingClientRect();
     const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
     const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
@@ -228,6 +232,7 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
   };
 
   const handleContainerPointerMove = (e: React.PointerEvent) => {
+    if ((isDoodleMode && currentStroke) || draggingStickerRef.current) e.preventDefault();
     if (isDoodleMode && currentStroke && stripContainerRef.current) {
       const rect = stripContainerRef.current.getBoundingClientRect();
       const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
@@ -546,6 +551,9 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
                 if (!isDoodleMode) setSelectedStickerId(null);
               }}
               style={{
+                touchAction: (isDoodleMode || selectedStickerId) ? 'none' : 'pan-y',
+                WebkitUserSelect: 'none',
+                userSelect: 'none',
                 backgroundColor: currentFrame.isSpecialPattern === 'gradient-sunset' ? undefined : currentFrame.bgHex,
                 backgroundImage: currentFrame.isSpecialPattern === 'gradient-sunset' 
                   ? 'linear-gradient(135deg, #FDE68A 0%, #F472B6 50%, #C084FC 100%)' 
