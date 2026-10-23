@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+คตเคเคเคimport React, { useState, useRef, useEffect } from 'react';
 import { 
   Download, 
   Printer, 
@@ -875,18 +875,31 @@ const touchDragRef = useRef<string | null>(null);
               {settings.stickers.map((stk) => {
                 const isSelected = selectedStickerId === stk.id;
                 return (
+                  
                   <div
                     key={stk.id}
-                    onPointerDown={(e) => handleStickerPointerDown(e, stk.id)}
+                    onPointerDown={(e) => {
+                      if (e.pointerType === 'touch') return;
+                      handleStickerPointerDown(e, stk.id);
+                    }}
+                    onTouchStart={(e) => handleStickerTouchStart(e, stk.id)}
+                    onTouchMove={(e) => handleStickerTouchMove(e, stk.id)}
+                    onTouchEnd={(e) => handleStickerTouchEnd(e, stk.id)}
+                    onTouchCancel={() => {
+                      touchGestureRef.current = null;
+                      touchDragRef.current = null;
+                    }}
                     style={{
                       left: `${stk.x}%`,
                       top: `${stk.y}%`,
-                      transform: `translate(-50%, -50%) rotate(${stk.rotation}deg) scale(${stk.scale})`
+                      transform: `translate(-50%, -50%) rotate(${stk.rotation}deg) scale(${stk.scale})`,
+                      touchAction: 'none'
                     }}
                     className={`absolute cursor-grab active:cursor-grabbing z-30 transition-shadow ${
                       isSelected ? 'ring-2 ring-rose-500 ring-offset-2 ring-offset-black rounded-lg' : ''
                     }`}
                   >
+
                     {stk.type === 'graphic' && stk.svgContent ? (
                       <div 
                         className="w-16 h-16 flex items-center justify-center filter drop-shadow-md select-none pointer-events-none"
