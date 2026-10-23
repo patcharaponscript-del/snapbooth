@@ -207,6 +207,15 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
   };
 
   // Sticker dragging
+  const touchGestureRef = useRef<{
+  id: string;
+  startDistance: number;
+  startAngle: number;
+  startScale: number;
+  startRotation: number;
+} | null>(null);
+
+const touchDragRef = useRef<string | null>(null);
   const handleStickerPointerDown = (e: React.PointerEvent, id: string) => {
     if (isDoodleMode) return;
     e.preventDefault();
