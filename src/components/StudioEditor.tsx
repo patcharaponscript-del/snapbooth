@@ -169,7 +169,32 @@ export const StudioEditor: React.FC<StudioEditorProps> = ({
       )
     });
   };
+  
+const getTouchDistance = (touches: React.TouchList) => {
+  const dx = touches[0].clientX - touches[1].clientX;
+  const dy = touches[0].clientY - touches[1].clientY;
+  return Math.sqrt(dx * dx + dy * dy);
+};
 
+const getTouchAngle = (touches: React.TouchList) => {
+  return Math.atan2(
+    touches[1].clientY - touches[0].clientY,
+    touches[1].clientX - touches[0].clientX
+  ) * (180 / Math.PI);
+};
+
+const updateStickerById = (
+  id: string,
+  partial: Partial<PlacedSticker>
+) => {
+  updateSettings({
+    stickers: settings.stickers.map((sticker) =>
+      sticker.id === id
+        ? { ...sticker, ...partial }
+        : sticker
+    )
+  });
+};
   const handleDuplicateSticker = (id: string) => {
     const stk = settings.stickers.find((s) => s.id === id);
     if (!stk) return;
